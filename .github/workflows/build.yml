@@ -15,8 +15,6 @@ on:
         required: false
         default: "false"
         type: boolean
-  push:
-    branches: [main]
 
 permissions:
   contents: read
@@ -60,6 +58,11 @@ jobs:
           fi
 
       - name: Project keystore (STARLING_KEYSTORE_BASE64)
+        env:
+          STARLING_KEYSTORE_BASE64: ${{ secrets.STARLING_KEYSTORE_BASE64 }}
+          STARLING_KEY_ALIAS: ${{ secrets.STARLING_KEY_ALIAS }}
+          STARLING_STORE_PASSWORD: ${{ secrets.STARLING_STORE_PASSWORD }}
+          STARLING_KEY_PASSWORD: ${{ secrets.STARLING_KEY_PASSWORD }}
         run: |
           printf '%s' "$STARLING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/starling.keystore"
           {
@@ -68,11 +71,16 @@ jobs:
             echo "HORIZON_ANDROID_STORE_PASSWORD=$(printf '%s' "$STARLING_STORE_PASSWORD" | tr -d '\n\r')"
             echo "HORIZON_ANDROID_KEY_PASSWORD=$(printf '%s' "$STARLING_KEY_PASSWORD" | tr -d '\n\r')"
           } >> "$GITHUB_ENV"
-        env:
-          STARLING_KEYSTORE_BASE64: ${{ secrets.STARLING_KEYSTORE_BASE64 }}
-          STARLING_KEY_ALIAS: ${{ secrets.STARLING_KEY_ALIAS }}
-          STARLING_STORE_PASSWORD: ${{ secrets.STARLING_STORE_PASSWORD }}
-          STARLING_KEY_PASSWORD: ${{ secrets.STARLING_KEY_PASSWORD }}
+
+      # Fail here, in seconds, rather than after a fifteen minute native build:
+      # a keystore and its alias/password that do not match cannot sign anything.
+      - name: Check the keystore opens and holds the alias
+        run: |
+          keytool -list \
+            -keystore "$HORIZON_ANDROID_KEYSTORE" \
+            -alias "$HORIZON_ANDROID_KEY_ALIAS" \
+            -storepass:env HORIZON_ANDROID_STORE_PASSWORD
+          printf '%s' "$HORIZON_ANDROID_KEYSTORE" | xargs ls -l
 
       - name: Build the APK from source (timed)
         id: build
@@ -112,22 +120,53 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           tag="starling-$(date -u +%Y%m%d)"
+          if gh release view "$tag" >/dev/null 2>&1; then
+            echo "release $tag already exists, not publishing again"
+            exit 0
+          fi
           notes="build.md"
           {
             echo "## Starling APK built from source"
             echo
-            echo "- Source: upstream starling-client/starling at $(git rev-parse --short HEAD), built with packaging/android/build_apk.py (Rust/NDK, Gradle-free pipeline)."
+            echo "- Source: upstream \`starling-client/starling\` at \`$(git rev-parse --short=10 HEAD)\`, built with its own pipeline \`packaging/android/build_apk.py\` (Rust, Android NDK, JDK 25; no Gradle, no prebuilt APK)."
             echo "- Variant: preview, application id \`io.github.juanluci.starling.preview\`, installs beside the official app. It can never replace or update the official Starling release."
-            echo "- Signed with this repository's project-owned key (\`starling-build\`); the official upstream release key is not used and was never requested."
-            echo "- Build time: ${{ steps.build.outputs.seconds }} s. Local tested installs: none (not tested on a device)."
+            echo "- Signed with this repository's project-owned key (\`starling-build\`); the official upstream release key is not used, requested or stored here."
+            echo "- Build time (compile + package + sign): ${{ steps.build.outputs.seconds }} s."
             echo
-            echo '### Certificate (apksigner --print-certs)'
+            echo '### Certificate (apksigner verify --print-certs)'
             echo '```'
             cat certs.txt
             echo '```'
+            echo
+            echo '### Test matrix'
+            echo
+            echo '| Check | Result |'
+            echo '| --- | --- |'
+            echo '| Build from upstream source with the project pipeline | PASS |'
+            echo '| `apksigner verify --print-certs` | PASS |'
+            echo '| APK payload (`lib/arm64-v8a`, dex, assets) | PASS |'
+            echo '| Install on a real device or emulator | **NOT TESTED** (no device attached) |'
+            echo '| Touch, controllers, frame rates, Android version behaviour | **NOT TESTED** |'
+            echo '| Full offline bundle | **NOT SHIPPED** - standard source build; assets/prepare-kit.zip is used on the phone |'
+            echo
+            echo '### Files'
+            echo
+            echo '- `starling-preview-0.8.0-arm64-v8a.apk` - the signed APK.'
+            echo '- `starling-source.tar.gz` - the exact source it was built from.'
+            echo '- `certs.txt`, `apk.sha256`, `SHA256SUMS`.'
           } > "$notes"
           gh release create "$tag" --title "Starling source build $tag" --notes-file "$notes" \
             "$(ls target/android/starling-preview-*.apk)" certs.txt apk.sha256 starling-source.tar.gz SHA256SUMS
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### starling"
+            echo
+            echo "- Build time: ${{ steps.build.outputs.seconds }} s"
+            echo "- APK: $(ls -l target/android/starling-preview-*.apk 2>/dev/null | awk '{print $5" bytes"}' || echo 'not produced')"
+          } >> "$GITHUB_STEP_SUMMARY"
 
   twofold:
     name: twofold (build, test, release)
@@ -184,3 +223,13 @@ jobs:
             --title "Twofold $version" --notes-file docs/RELEASE_NOTES.md \
             "dist/twofold-$version-arm64-v8a.apk" "dist/twofold-$version-arm64-v8a.apk.sha256" \
             dist/acceptance.txt dist/screenshots/*.png "twofold-$tag-source.tar.gz"
+
+      - name: Job summary
+        if: always()
+        run: |
+          {
+            echo "### twofold"
+            echo
+            echo "- Build + tests: ${{ steps.build.outputs.seconds }} s"
+            echo "- APK: $(ls -l dist/twofold-*.apk 2>/dev/null | awk '{print $5" bytes"}' || echo 'not produced')"
+          } >> "$GITHUB_STEP_SUMMARY"
