@@ -64,9 +64,9 @@ jobs:
           printf '%s' "$STARLING_KEYSTORE_BASE64" | base64 -d > "$RUNNER_TEMP/starling.keystore"
           {
             echo "HORIZON_ANDROID_KEYSTORE=$RUNNER_TEMP/starling.keystore"
-            echo "HORIZON_ANDROID_KEY_ALIAS=$STARLING_KEY_ALIAS"
-            echo "HORIZON_ANDROID_STORE_PASSWORD=$STARLING_STORE_PASSWORD"
-            echo "HORIZON_ANDROID_KEY_PASSWORD=$STARLING_KEY_PASSWORD"
+            echo "HORIZON_ANDROID_KEY_ALIAS=$(printf '%s' "$STARLING_KEY_ALIAS" | tr -d '\n\r')"
+            echo "HORIZON_ANDROID_STORE_PASSWORD=$(printf '%s' "$STARLING_STORE_PASSWORD" | tr -d '\n\r')"
+            echo "HORIZON_ANDROID_KEY_PASSWORD=$(printf '%s' "$STARLING_KEY_PASSWORD" | tr -d '\n\r')"
           } >> "$GITHUB_ENV"
         env:
           STARLING_KEYSTORE_BASE64: ${{ secrets.STARLING_KEYSTORE_BASE64 }}
