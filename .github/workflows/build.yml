@@ -26,6 +26,8 @@ jobs:
     name: starling (source build, own key)
     runs-on: ubuntu-latest
     timeout-minutes: 350
+    permissions:
+      contents: write
     defaults:
       run:
         shell: bash
