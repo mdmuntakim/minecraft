@@ -1,0 +1,16 @@
+[package]
+name = "fabric-loader-cli"
+version = "0.1.0"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+description = "horizon-ctl fabric: pack, verify, resolve, tree and migrate .fabricmod files"
+
+[[bin]]
+name = "horizon-ctl"
+path = "src/main.rs"
+
+[dependencies]
+fabric-loader = { path = "../fabric-loader" }
+fabric-mod-format = { path = "../fabric-mod-format" }
+serde_json = "1"
