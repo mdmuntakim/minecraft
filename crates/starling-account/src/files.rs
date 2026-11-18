@@ -53,11 +53,57 @@ pub struct Sources {
     pub resources: String,
 }
 
+/// The base this run downloads the game's files from: the Mojang host the file is on, or the
+/// owner's `mdmuntakim/minecraft-assets` repository when `HORIZON_MINECRAFT_DOWNLOAD_BASE` holds
+/// the base to download from instead. The files keep the paths they have on Mojang's hosts, so
+/// one base serves the version JSONs, the jars and the asset objects.
+pub fn download_base(host: &str) -> String {
+    std::env::var("HORIZON_MINECRAFT_DOWNLOAD_BASE")
+        .ok()
+        .filter(|b| !b.is_empty())
+        .unwrap_or_else(|| host.to_owned())
+}
+
+/// The version files' base: Mojang's version list, or the owner's `minecraft-assets`.
+pub fn version_base() -> String {
+    download_base("https://piston-meta.mojang.com")
+}
+
+/// The game jars' base: Mojang's version data, or the owner's `minecraft-assets`.
+pub fn jar_base() -> String {
+    download_base("https://piston-data.mojang.com")
+}
+
+/// The asset objects' base: Mojang's assets, or the owner's `minecraft-assets`.
+pub fn objects_base() -> String {
+    download_base("https://resources.download.minecraft.net")
+}
+
+/// One Mojang URL of this run, from the base this run downloads from: the host the file is on
+/// picks the base, the rest of the path comes along (`/v1/packages/<sha1>/<version>.json`,
+/// `/assets/<xx>/<hash>`, `/client.jar`, ...). A URL on another host is the player's own and is
+/// taken as it is.
+pub fn mojang_url(url: &str) -> String {
+    let (base, rest) = if url.starts_with("https://piston-meta.mojang.com") {
+        (version_base().as_str(), &url["https://piston-meta.mojang.com".len()..])
+    } else if url.starts_with("https://piston-data.mojang.com") {
+        (jar_base().as_str(), &url["https://piston-data.mojang.com".len()..])
+    } else if url.starts_with("https://resources.download.minecraft.net") {
+        (objects_base().as_str(), &url["https://resources.download.minecraft.net".len()..])
+    } else {
+        return url.to_owned();
+    };
+    format!("{}{rest}", base.trim_end_matches('/'))
+}
+
 impl Sources {
+    /// Mojang's servers, or a mock in tests: the base this run downloads the game's files
+    /// from, which the owner's `mdmuntakim/minecraft-assets` repository answers when
+    /// `HORIZON_MINECRAFT_DOWNLOAD_BASE` holds the base to download from instead.
     pub fn live() -> Self {
         Self {
-            meta: "https://piston-meta.mojang.com".into(),
-            resources: "https://resources.download.minecraft.net".into(),
+            meta: version_base(),
+            resources: objects_base(),
         }
     }
 }
@@ -281,7 +327,7 @@ pub fn download(
             ));
         }
         Ok(Item {
-            url: url.into(),
+            url: mojang_url(url),
             path,
             sha1: sha1.into(),
             size: d["size"].as_u64().unwrap_or(0),
@@ -329,7 +375,7 @@ pub fn download(
         let data = match std::fs::read(&index_path) {
             Ok(data) if sha1_hex(&data) == sha1 => data,
             _ => {
-                let data = fetch_checked(url, sha1, "the asset index")?;
+                let data = fetch_checked(&mojang_url(url), sha1, "the asset index")?;
                 write_file(&index_path, &data)?;
                 data
             }
