@@ -14,11 +14,7 @@
 
 use crate::error::{ErrorCode, FabricError, Result};
 use serde::{Deserialize, Serialize};
-use std::{
-    cmp::Ordering,
-    fmt,
-    str::FromStr,
-};
+use std::{cmp::Ordering, fmt, str::FromStr};
 
 /// A semantic version, with SemVer 2.0 precedence.
 #[derive(Clone, Debug, Eq, PartialEq, Serialize, Deserialize)]
@@ -68,7 +64,10 @@ impl Version {
                     if !valid_identifier(part, true) {
                         return Err(invalid("invalid prerelease identifier", text));
                     }
-                    if part.len() > 1 && part.chars().all(|c| c.is_ascii_digit()) && part.starts_with('0') {
+                    if part.len() > 1
+                        && part.chars().all(|c| c.is_ascii_digit())
+                        && part.starts_with('0')
+                    {
                         return Err(invalid("prerelease number has a leading zero", text));
                     }
                 }
@@ -118,9 +117,7 @@ fn parse_number(text: Option<&str>, whole: &str) -> Result<u64> {
 
 fn valid_identifier(part: &str, prerelease: bool) -> bool {
     !part.is_empty()
-        && part
-            .chars()
-            .all(|c| c.is_ascii_alphanumeric() || c == '-')
+        && part.chars().all(|c| c.is_ascii_alphanumeric() || c == '-')
         && (!prerelease || part.chars().any(|c| c.is_ascii_alphanumeric()))
 }
 
@@ -201,7 +198,6 @@ struct Partial {
     minor: Option<u64>,
     patch: Option<u64>,
     pre: Vec<String>,
-    pre_text: Option<String>,
 }
 
 impl Partial {
@@ -291,7 +287,6 @@ fn parse_partial(text: &str) -> Result<Partial> {
         minor,
         patch,
         pre,
-        pre_text,
     })
 }
 
@@ -443,12 +438,9 @@ impl VersionRange {
 
     /// Whether some version satisfies both ranges.
     pub fn intersects(&self, other: &Self) -> bool {
-        self.alternatives.iter().any(|a| {
-            other
-                .alternatives
-                .iter()
-                .any(|b| a.intersect(b).is_some())
-        })
+        self.alternatives
+            .iter()
+            .any(|a| other.alternatives.iter().any(|b| a.intersect(b).is_some()))
     }
 
     /// A witness version in the intersection, when one exists. Used by the
@@ -588,7 +580,10 @@ fn constraint_interval(op: &str, partial: &Partial, token: &str) -> Result<Inter
     }
     let lower = partial.lower();
     let next = partial.next();
-    let exact = matches!((partial.major, partial.minor, partial.patch), (Some(_), Some(_), Some(_)));
+    let exact = matches!(
+        (partial.major, partial.minor, partial.patch),
+        (Some(_), Some(_), Some(_))
+    );
 
     match op {
         ">=" => Ok(Interval {
@@ -599,7 +594,11 @@ fn constraint_interval(op: &str, partial: &Partial, token: &str) -> Result<Inter
             upper: None,
         }),
         ">" => {
-            let version = if exact { lower } else { next.ok_or_else(|| invalid("bad bound", token))? };
+            let version = if exact {
+                lower
+            } else {
+                next.ok_or_else(|| invalid("bad bound", token))?
+            };
             Ok(Interval {
                 lower: Some(Bound {
                     version,
@@ -633,9 +632,7 @@ fn constraint_interval(op: &str, partial: &Partial, token: &str) -> Result<Inter
             }),
         }),
         "=" => {
-            if exact && partial.pre_text.is_some() {
-                Ok(Interval::exact(lower))
-            } else if exact {
+            if exact {
                 Ok(Interval::exact(lower))
             } else {
                 Ok(Interval {
@@ -712,13 +709,24 @@ mod tests {
 
     #[test]
     fn semver_ordering() {
-        let mut versions = ["1.0.0", "1.0.0-alpha", "1.0.0-alpha.1", "1.0.0-beta", "1.0.0-rc.1", "1.0.0+build", "0.9.9"]
-            .map(v)
-            .to_vec();
+        let mut versions = [
+            "1.0.0",
+            "1.0.0-alpha",
+            "1.0.0-alpha.1",
+            "1.0.0-beta",
+            "1.0.0-rc.1",
+            "1.0.0+build",
+            "0.9.9",
+        ]
+        .map(v)
+        .to_vec();
         versions.sort();
         let names: Vec<String> = versions.iter().map(ToString::to_string).collect();
         assert_eq!(names[0], "0.9.9");
-        assert!(names.iter().position(|s| s == "1.0.0-alpha").unwrap() < names.iter().position(|s| s == "1.0.0-alpha.1").unwrap());
+        assert!(
+            names.iter().position(|s| s == "1.0.0-alpha").unwrap()
+                < names.iter().position(|s| s == "1.0.0-alpha.1").unwrap()
+        );
         assert_eq!(v("1.0.0+build").cmp(&v("1.0.0")), Ordering::Equal);
     }
 
@@ -730,7 +738,17 @@ mod tests {
 
     #[test]
     fn rejects_hostile_versions_without_panicking() {
-        for bad in ["", "1", "1.2", "1.2.3.4", "1.2.3-", "1.2.3+", "01.2.3", "1.2.3-a..b", "1.-2.3"] {
+        for bad in [
+            "",
+            "1",
+            "1.2",
+            "1.2.3.4",
+            "1.2.3-",
+            "1.2.3+",
+            "01.2.3",
+            "1.2.3-a..b",
+            "1.-2.3",
+        ] {
             assert!(Version::parse(bad).is_err(), "{bad}");
         }
     }
@@ -794,7 +812,16 @@ mod tests {
 
     #[test]
     fn rejects_bad_ranges() {
-        for bad in ["", "[1.0", "[1.0,2.0,3.0)", ">=x", "1.2.3.4", ">~", "[a,b]", "||"] {
+        for bad in [
+            "",
+            "[1.0",
+            "[1.0,2.0,3.0)",
+            ">=x",
+            "1.2.3.4",
+            ">~",
+            "[a,b]",
+            "||",
+        ] {
             assert!(VersionRange::parse(bad).is_err(), "{bad}");
         }
     }

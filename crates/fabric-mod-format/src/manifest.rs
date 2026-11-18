@@ -28,7 +28,9 @@ fn default_format() -> u32 {
     1
 }
 
-fn one_or_many<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Vec<String>, D::Error> {
+fn one_or_many<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Vec<String>, D::Error> {
     let value = Value::deserialize(deserializer)?;
     match value {
         Value::String(s) => Ok(vec![s]),
@@ -39,18 +41,24 @@ fn one_or_many<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Resul
                 _ => Err(serde::de::Error::custom("expected a string")),
             })
             .collect(),
-        _ => Err(serde::de::Error::custom("expected a string or an array of strings")),
+        _ => Err(serde::de::Error::custom(
+            "expected a string or an array of strings",
+        )),
     }
 }
 
 /// Fabric allows `"main": "value"`, `"main": { ... }` and arrays of either.
-fn entrypoints<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Entrypoints, D::Error> {
+fn entrypoints<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Entrypoints, D::Error> {
     let value = BTreeMap::<String, Value>::deserialize(deserializer)?;
     let mut out = Entrypoints::new();
     for (name, value) in value {
         let items = match value {
             Value::String(s) => vec![Entrypoint::Plain(s)],
-            Value::Object(_) => vec![serde_json::from_value(value).map_err(serde::de::Error::custom)?],
+            Value::Object(_) => {
+                vec![serde_json::from_value(value).map_err(serde::de::Error::custom)?]
+            }
             Value::Array(items) => {
                 let mut out = Vec::with_capacity(items.len());
                 for item in items {
@@ -69,7 +77,9 @@ fn entrypoints<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Resul
     Ok(out)
 }
 
-fn license<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Option<String>, D::Error> {
+fn license<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error> {
     let value = Value::deserialize(deserializer)?;
     match value {
         Value::Null => Ok(None),
@@ -84,11 +94,15 @@ fn license<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Op
             }
             Ok(Some(names.join(", ")))
         }
-        _ => Err(serde::de::Error::custom("expected a string or an array of strings")),
+        _ => Err(serde::de::Error::custom(
+            "expected a string or an array of strings",
+        )),
     }
 }
 
-fn icon<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Option<String>, D::Error> {
+fn icon<'de, D: Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<String>, D::Error> {
     let value = Value::deserialize(deserializer)?;
     match value {
         Value::Null => Ok(None),
@@ -106,7 +120,9 @@ fn icon<'de, D: Deserializer<'de>>(deserializer: D) -> std::result::Result<Optio
                 .map(|s| Ok(Some(s.to_owned())))
                 .unwrap_or(Ok(None))
         }
-        _ => Err(serde::de::Error::custom("icon must be a path or a size map")),
+        _ => Err(serde::de::Error::custom(
+            "icon must be a path or a size map",
+        )),
     }
 }
 
@@ -198,7 +214,10 @@ pub struct Requirement {
 }
 
 impl Serialize for Requirement {
-    fn serialize<S: serde::Serializer>(&self, serializer: S) -> std::result::Result<S::Ok, S::Error> {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
         match self.raw.as_slice() {
             [one] => serializer.serialize_str(one),
             many => many.serialize(serializer),
@@ -387,7 +406,11 @@ impl Manifest {
         for alias in &self.provides {
             validate_id(alias)?;
         }
-        for (name, entrypoint) in self.entrypoints.iter().flat_map(|(k, v)| v.iter().map(move |e| (k, e))) {
+        for (name, entrypoint) in self
+            .entrypoints
+            .iter()
+            .flat_map(|(k, v)| v.iter().map(move |e| (k, e)))
+        {
             if entrypoint.value().trim().is_empty() {
                 return Err(FabricError::with_detail(
                     ErrorCode::ManifestInvalid,
@@ -406,7 +429,11 @@ impl Manifest {
             }
         }
         if let Some(widener) = &self.access_widener {
-            if !matches!(widener.as_str(), "accessWidener" | "accessWidener-v1" | "accessWidener-v2") && widener.is_empty() {
+            if !matches!(
+                widener.as_str(),
+                "accessWidener" | "accessWidener-v1" | "accessWidener-v2"
+            ) && widener.is_empty()
+            {
                 return Err(FabricError::with_detail(
                     ErrorCode::FormatInvalid,
                     "accessWidener is empty",
@@ -476,7 +503,11 @@ impl Manifest {
         // insertion order only with preserve_order, which this build does not
         // enable, so the output is deterministic.
         serde_json::to_string_pretty(self).map_err(|e| {
-            FabricError::with_detail(ErrorCode::ManifestInvalid, "manifest cannot be serialised", e.to_string())
+            FabricError::with_detail(
+                ErrorCode::ManifestInvalid,
+                "manifest cannot be serialised",
+                e.to_string(),
+            )
         })
     }
 }
@@ -549,7 +580,10 @@ mod tests {
         assert_eq!(m.depends["other"].ranges.len(), 2);
         assert_eq!(m.provides, ["example-alias"]);
         assert_eq!(m.capabilities(), ["fs", "net"]);
-        assert_eq!(m.native_library().as_deref(), Some("lib/arm64-v8a/libexample.so"));
+        assert_eq!(
+            m.native_library().as_deref(),
+            Some("lib/arm64-v8a/libexample.so")
+        );
         assert_eq!(m.extra["futureField"]["kept"], true);
         assert_eq!(m.custom["other-mod"]["x"], 1);
         assert_eq!(m.mixins[1].config(), "client.mixins.json");
@@ -580,7 +614,11 @@ mod tests {
     #[test]
     fn malformed_input_never_panics() {
         for text in [
-            "", "null", "[]", "{}", r#"{"id":"","version":"1.0.0"}"#,
+            "",
+            "null",
+            "[]",
+            "{}",
+            r#"{"id":"","version":"1.0.0"}"#,
             r#"{"id":"A","version":"1.0.0"}"#,
             r#"{"id":"minecraft","version":"1.0.0"}"#,
             r#"{"id":"a","version":"nope"}"#,
@@ -588,7 +626,9 @@ mod tests {
             r#"{"id":"a","version":"1.0.0","environment":"both"}"#,
             r#"{"id":"a","version":"1.0.0","entrypoints":{"main":[""]}}"#,
             r#"{"id":"a","version":"1.0.0","icon":"../x.png"}"#,
-            &("{\"id\":\"a\",\"version\":\"1.0.0\",\"x\":\"".to_owned() + &"y".repeat(MAX_MANIFEST) + "\"}"),
+            &("{\"id\":\"a\",\"version\":\"1.0.0\",\"x\":\"".to_owned()
+                + &"y".repeat(MAX_MANIFEST)
+                + "\"}"),
         ] {
             let _ = Manifest::parse(text);
         }

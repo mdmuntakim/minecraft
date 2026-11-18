@@ -31,6 +31,8 @@ pub enum ErrorCode {
     UnsupportedJava,
     /// A Java mixin class was supplied instead of a Rust mixin config.
     MixinJavaUnsupported,
+    /// A declared entrypoint has no matching Rust symbol in the native library.
+    EntrypointMissing,
     /// Two version ranges cannot be satisfied together.
     VersionConflict,
     /// A version range or version literal does not parse.
@@ -57,6 +59,8 @@ pub enum ErrorCode {
     LockfileMismatch,
     /// The dependency graph has a cycle.
     DependencyCycle,
+    /// Two mods claim the same id or alias.
+    DuplicateMod,
     /// A legacy `.hmod`/`.hnmod` could not be migrated.
     MigrationFailed,
     /// A bundled offline asset is not in the APK.
@@ -86,6 +90,7 @@ impl ErrorCode {
             Self::ZipLimit => "FABRIC_ZIP_LIMIT",
             Self::UnsupportedJava => "FABRIC_UNSUPPORTED_JAVA",
             Self::MixinJavaUnsupported => "FABRIC_MIXIN_JAVA_UNSUPPORTED",
+            Self::EntrypointMissing => "FABRIC_ENTRYPOINT_MISSING",
             Self::VersionConflict => "FABRIC_VERSION_CONFLICT",
             Self::VersionInvalid => "FABRIC_VERSION_INVALID",
             Self::DependencyMissing => "FABRIC_DEPENDENCY_MISSING",
@@ -99,6 +104,7 @@ impl ErrorCode {
             Self::IconInvalid => "FABRIC_ICON_INVALID",
             Self::LockfileMismatch => "FABRIC_LOCKFILE_MISMATCH",
             Self::DependencyCycle => "FABRIC_DEPENDENCY_CYCLE",
+            Self::DuplicateMod => "FABRIC_DUPLICATE_MOD",
             Self::MigrationFailed => "FABRIC_MIGRATION_FAILED",
             Self::OfflineAssetMissing => "OFFLINE_ASSET_MISSING",
             Self::OfflineAssetCorrupt => "OFFLINE_ASSET_CORRUPT",
@@ -111,9 +117,7 @@ impl ErrorCode {
     /// A sentence for the player, in the imperative.
     pub const fn sentence(self) -> &'static str {
         match self {
-            Self::ManifestInvalid => {
-                "The mod's fabric.mod.json is missing or is not valid JSON."
-            }
+            Self::ManifestInvalid => "The mod's fabric.mod.json is missing or is not valid JSON.",
             Self::ManifestTooLarge => "The mod's fabric.mod.json is larger than 1 MiB.",
             Self::FormatTooNew => "This mod needs a newer version of the game to load.",
             Self::FormatInvalid => "This file is not a .fabricmod container.",
@@ -127,6 +131,9 @@ impl ErrorCode {
             }
             Self::MixinJavaUnsupported => {
                 "This mod ships Java mixin classes, which this build cannot run."
+            }
+            Self::EntrypointMissing => {
+                "This mod declares an entrypoint its library does not export."
             }
             Self::VersionConflict => "Two mods need versions that cannot both be installed.",
             Self::VersionInvalid => "The mod declares a version range that cannot be parsed.",
@@ -143,6 +150,7 @@ impl ErrorCode {
             Self::IconInvalid => "The mod's icon is not a valid PNG.",
             Self::LockfileMismatch => "The installed mods do not match fabric.lock.",
             Self::DependencyCycle => "The mods depend on each other in a circle.",
+            Self::DuplicateMod => "Two mods have the same id.",
             Self::MigrationFailed => "An old .hmod or .hnmod file could not be converted.",
             Self::OfflineAssetMissing => "A game file is missing from this installation.",
             Self::OfflineAssetCorrupt => "A game file is damaged.",
@@ -150,6 +158,32 @@ impl ErrorCode {
             Self::ModpackInvalid => "The modpack file is damaged.",
             Self::InvalidId => "A mod id contains characters that are not allowed.",
         }
+    }
+}
+
+impl ErrorCode {
+    /// Parses a code from its written form.
+    pub fn parse(text: &str) -> Option<Self> {
+        ALL_CODES.iter().copied().find(|code| code.as_str() == text)
+    }
+}
+
+impl serde::Serialize for ErrorCode {
+    fn serialize<S: serde::Serializer>(
+        &self,
+        serializer: S,
+    ) -> std::result::Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> serde::Deserialize<'de> for ErrorCode {
+    fn deserialize<D: serde::Deserializer<'de>>(
+        deserializer: D,
+    ) -> std::result::Result<Self, D::Error> {
+        let text = <std::string::String as serde::Deserialize>::deserialize(deserializer)?;
+        Self::parse(&text)
+            .ok_or_else(|| serde::de::Error::custom(format!("unknown error code {text}")))
     }
 }
 
@@ -176,7 +210,11 @@ impl FabricError {
         }
     }
 
-    pub fn with_detail(code: ErrorCode, message: impl Into<String>, detail: impl Into<String>) -> Self {
+    pub fn with_detail(
+        code: ErrorCode,
+        message: impl Into<String>,
+        detail: impl Into<String>,
+    ) -> Self {
         Self {
             code,
             message: message.into(),
@@ -221,6 +259,7 @@ pub const ALL_CODES: &[ErrorCode] = &[
     ErrorCode::ZipLimit,
     ErrorCode::UnsupportedJava,
     ErrorCode::MixinJavaUnsupported,
+    ErrorCode::EntrypointMissing,
     ErrorCode::VersionConflict,
     ErrorCode::VersionInvalid,
     ErrorCode::DependencyMissing,
@@ -234,6 +273,7 @@ pub const ALL_CODES: &[ErrorCode] = &[
     ErrorCode::IconInvalid,
     ErrorCode::LockfileMismatch,
     ErrorCode::DependencyCycle,
+    ErrorCode::DuplicateMod,
     ErrorCode::MigrationFailed,
     ErrorCode::OfflineAssetMissing,
     ErrorCode::OfflineAssetCorrupt,

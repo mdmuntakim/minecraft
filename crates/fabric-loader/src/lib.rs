@@ -2,9 +2,9 @@
 
 #![forbid(unsafe_code)]
 
-pub mod compat;
 pub mod capabilities;
 pub mod catalog;
+pub mod compat;
 pub mod crash;
 pub mod discovery;
 pub mod entrypoints;

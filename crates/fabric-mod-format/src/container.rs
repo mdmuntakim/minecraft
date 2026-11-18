@@ -8,7 +8,7 @@
 
 use crate::{
     error::{ErrorCode, FabricError, Result},
-    manifest::{Manifest, MAX_MANIFEST},
+    manifest::{MAX_MANIFEST, Manifest},
     signature::{Signature, TrustStore},
 };
 use serde::{Deserialize, Serialize};
@@ -102,7 +102,11 @@ impl Container {
             ));
         }
         let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| {
-            FabricError::with_detail(ErrorCode::ZipInvalid, "the zip archive is damaged", e.to_string())
+            FabricError::with_detail(
+                ErrorCode::ZipInvalid,
+                "the zip archive is damaged",
+                e.to_string(),
+            )
         })?;
         if zip.len() > limits.entries {
             return Err(FabricError::with_detail(
@@ -121,7 +125,11 @@ impl Container {
 
         for index in 0..zip.len() {
             let mut entry = zip.by_index(index).map_err(|e| {
-                FabricError::with_detail(ErrorCode::ZipInvalid, "an entry cannot be read", e.to_string())
+                FabricError::with_detail(
+                    ErrorCode::ZipInvalid,
+                    "an entry cannot be read",
+                    e.to_string(),
+                )
             })?;
             let raw_name = entry
                 .name()
@@ -183,7 +191,11 @@ impl Container {
                 .take(cap)
                 .read_to_end(&mut data)
                 .map_err(|e| {
-                    FabricError::with_detail(ErrorCode::ZipInvalid, "an entry is damaged", format!("{name}: {e}"))
+                    FabricError::with_detail(
+                        ErrorCode::ZipInvalid,
+                        "an entry is damaged",
+                        format!("{name}: {e}"),
+                    )
                 })?;
             if data.len() as u64 > limits.entry {
                 return Err(FabricError::with_detail(
@@ -196,7 +208,10 @@ impl Container {
             if total > limits.total {
                 return Err(FabricError::with_detail(
                     ErrorCode::ZipLimit,
-                    format!("the mod is larger than {} MiB uncompressed", limits.total >> 20),
+                    format!(
+                        "the mod is larger than {} MiB uncompressed",
+                        limits.total >> 20
+                    ),
                     name,
                 ));
             }
@@ -257,7 +272,10 @@ impl Container {
         if manifest.format_version > FORMAT_VERSION {
             return Err(FabricError::with_detail(
                 ErrorCode::FormatTooNew,
-                format!("formatVersion {} is newer than this build's {FORMAT_VERSION}", manifest.format_version),
+                format!(
+                    "formatVersion {} is newer than this build's {FORMAT_VERSION}",
+                    manifest.format_version
+                ),
                 manifest.id,
             ));
         }
@@ -279,6 +297,129 @@ impl Container {
             files,
             digest,
             signature,
+        })
+    }
+
+    /// Reads an unpacked mod folder (development layout, and the template the
+    /// CLI writes). The result is identical to the container a pack produces.
+    pub fn read_folder(path: &Path) -> Result<Self> {
+        let manifest_text = fs::read_to_string(path.join(MANIFEST_ENTRY)).map_err(|e| {
+            FabricError::with_detail(
+                ErrorCode::ManifestInvalid,
+                "the folder has no fabric.mod.json",
+                format!("{}: {e}", path.display()),
+            )
+        })?;
+        if manifest_text.len() > MAX_MANIFEST {
+            return Err(FabricError::new(
+                ErrorCode::ManifestTooLarge,
+                "fabric.mod.json is over 1 MiB",
+            ));
+        }
+        let manifest = Manifest::parse(&manifest_text)?;
+        if manifest.format_version > FORMAT_VERSION {
+            return Err(FabricError::new(
+                ErrorCode::FormatTooNew,
+                "the folder uses a newer format",
+            ));
+        }
+        let limits = Limits::default();
+        let mut files = BTreeMap::new();
+        let mut total = 0u64;
+        let mut stack = vec![path.to_path_buf()];
+        while let Some(dir) = stack.pop() {
+            let read = fs::read_dir(&dir).map_err(|e| {
+                FabricError::with_detail(
+                    ErrorCode::FormatInvalid,
+                    "a mod folder cannot be read",
+                    format!("{}: {e}", dir.display()),
+                )
+            })?;
+            for entry in read.flatten() {
+                let file_type = entry
+                    .file_type()
+                    .map_err(|e| FabricError::new(ErrorCode::FormatInvalid, e.to_string()))?;
+                if file_type.is_symlink() {
+                    return Err(FabricError::with_detail(
+                        ErrorCode::ZipSymlink,
+                        "symbolic links are not allowed in a mod",
+                        entry.path().display().to_string(),
+                    ));
+                }
+                if file_type.is_dir() {
+                    stack.push(entry.path());
+                    continue;
+                }
+                if !file_type.is_file() {
+                    continue;
+                }
+                let relative = entry
+                    .path()
+                    .strip_prefix(path)
+                    .map_err(|_| {
+                        FabricError::new(ErrorCode::ZipSlip, "a file is outside the folder")
+                    })?
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let name = canonical_name(&relative)?;
+                if name == MANIFEST_ENTRY || name == SIGNATURE_ENTRY {
+                    continue;
+                }
+                let data = fs::read(entry.path()).map_err(|e| {
+                    FabricError::with_detail(
+                        ErrorCode::FormatInvalid,
+                        "a mod file cannot be read",
+                        e.to_string(),
+                    )
+                })?;
+                total = total.saturating_add(data.len() as u64);
+                if files.len() >= limits.entries
+                    || data.len() as u64 > limits.entry
+                    || total > limits.total
+                {
+                    return Err(FabricError::new(
+                        ErrorCode::ZipLimit,
+                        "the mod folder is too large",
+                    ));
+                }
+                files.insert(
+                    name.clone(),
+                    File {
+                        executable: entry
+                            .metadata()
+                            .map(|m| {
+                                #[cfg(unix)]
+                                {
+                                    use std::os::unix::fs::PermissionsExt;
+                                    m.permissions().mode() & 0o111 != 0
+                                }
+                                #[cfg(not(unix))]
+                                {
+                                    let _ = m;
+                                    false
+                                }
+                            })
+                            .unwrap_or(false),
+                        name,
+                        data,
+                    },
+                );
+            }
+        }
+        for file in files.values() {
+            if file.name.starts_with("lib/") && file.name.ends_with(".so") {
+                check_abi(&file.name)?;
+            }
+        }
+        let digest = digest_of(&manifest_text, &files);
+        check_java(&manifest, &files)?;
+        check_icon(&manifest, &files)?;
+        Ok(Self {
+            manifest,
+            manifest_text,
+            files,
+            digest,
+            signature: None,
         })
     }
 
@@ -448,7 +589,11 @@ fn check_icon(manifest: &Manifest, files: &BTreeMap<String, File>) -> Result<()>
         ));
     };
     let (width, height) = png_size(&file.data).ok_or_else(|| {
-        FabricError::with_detail(ErrorCode::IconInvalid, "the icon is not a PNG", path.clone())
+        FabricError::with_detail(
+            ErrorCode::IconInvalid,
+            "the icon is not a PNG",
+            path.clone(),
+        )
     })?;
     if width > MAX_ICON_EDGE || height > MAX_ICON_EDGE || width == 0 || height == 0 {
         return Err(FabricError::with_detail(
@@ -549,12 +694,19 @@ pub fn write_container(manifest_text: &str, files: &BTreeMap<String, File>) -> R
     use zip::write::SimpleFileOptions;
     use zip::{CompressionMethod, DateTime};
     if manifest_text.len() > MAX_MANIFEST {
-        return Err(FabricError::new(ErrorCode::ManifestTooLarge, "fabric.mod.json is over 1 MiB"));
+        return Err(FabricError::new(
+            ErrorCode::ManifestTooLarge,
+            "fabric.mod.json is over 1 MiB",
+        ));
     }
     let mut zip = zip::ZipWriter::new(Cursor::new(Vec::new()));
     let timestamp = DateTime::from_date_and_time(1980, 1, 1, 0, 0, 0).unwrap_or_default();
     let err = |e: zip::result::ZipError| {
-        FabricError::with_detail(ErrorCode::ZipInvalid, "the container cannot be written", e.to_string())
+        FabricError::with_detail(
+            ErrorCode::ZipInvalid,
+            "the container cannot be written",
+            e.to_string(),
+        )
     };
     let mut put = |name: &str, bytes: &[u8], executable: bool| -> Result<()> {
         let method = if is_compressed(name) {
@@ -571,7 +723,11 @@ pub fn write_container(manifest_text: &str, files: &BTreeMap<String, File>) -> R
         }
         zip.start_file(name, options).map_err(err)?;
         zip.write_all(bytes).map_err(|e| {
-            FabricError::with_detail(ErrorCode::ZipInvalid, "the container cannot be written", e.to_string())
+            FabricError::with_detail(
+                ErrorCode::ZipInvalid,
+                "the container cannot be written",
+                e.to_string(),
+            )
         })
     };
     put(MANIFEST_ENTRY, manifest_text.as_bytes(), false)?;
@@ -591,8 +747,23 @@ pub fn write_container(manifest_text: &str, files: &BTreeMap<String, File>) -> R
 /// Extensions whose payload is already compressed.
 pub fn is_compressed(name: &str) -> bool {
     matches!(
-        name.rsplit('.').next().unwrap_or_default().to_ascii_lowercase().as_str(),
-        "zip" | "jar" | "ogg" | "png" | "jpg" | "jpeg" | "webp" | "gz" | "xz" | "zst" | "mp3" | "mp4"
+        name.rsplit('.')
+            .next()
+            .unwrap_or_default()
+            .to_ascii_lowercase()
+            .as_str(),
+        "zip"
+            | "jar"
+            | "ogg"
+            | "png"
+            | "jpg"
+            | "jpeg"
+            | "webp"
+            | "gz"
+            | "xz"
+            | "zst"
+            | "mp3"
+            | "mp4"
     )
 }
 

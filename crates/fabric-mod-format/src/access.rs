@@ -118,12 +118,18 @@ impl AccessWidener {
             };
             let (kind, owner, name, descriptor) = match fields.as_slice() {
                 [_, "class", owner] => (MemberKind::Class, *owner, String::new(), String::new()),
-                [_, "method", owner, name, descriptor] => {
-                    (MemberKind::Method, *owner, (*name).to_owned(), (*descriptor).to_owned())
-                }
-                [_, "field", owner, name, descriptor] => {
-                    (MemberKind::Field, *owner, (*name).to_owned(), (*descriptor).to_owned())
-                }
+                [_, "method", owner, name, descriptor] => (
+                    MemberKind::Method,
+                    *owner,
+                    (*name).to_owned(),
+                    (*descriptor).to_owned(),
+                ),
+                [_, "field", owner, name, descriptor] => (
+                    MemberKind::Field,
+                    *owner,
+                    (*name).to_owned(),
+                    (*descriptor).to_owned(),
+                ),
                 _ => {
                     return Err(FabricError::with_detail(
                         ErrorCode::FormatInvalid,
@@ -139,7 +145,8 @@ impl AccessWidener {
                     format!("line {}: {}", number + 2, e.message),
                 )
             })?;
-            if !name.is_empty() && (name.contains('/') || name.contains('.') || name.contains(';')) {
+            if !name.is_empty() && (name.contains('/') || name.contains('.') || name.contains(';'))
+            {
                 return Err(FabricError::with_detail(
                     ErrorCode::FormatInvalid,
                     "an access widener member name is invalid",
@@ -166,10 +173,10 @@ impl AccessWidener {
 
     /// The entries whose target does not exist in this build. `exists` is
     /// given the owner and, for members, the name and descriptor.
-    pub fn unresolved<'a>(
-        &'a self,
+    pub fn unresolved(
+        &self,
         mut exists: impl FnMut(&str, MemberKind, &str, &str) -> bool,
-    ) -> Vec<&'a AccessEntry> {
+    ) -> Vec<&AccessEntry> {
         self.entries
             .iter()
             .filter(|entry| !exists(&entry.owner, entry.kind, &entry.name, &entry.descriptor))
@@ -204,7 +211,10 @@ fn check_internal(name: &str) -> Result<()> {
         || name.contains(';')
         || name.len() > 512
     {
-        return Err(FabricError::new(ErrorCode::FormatInvalid, "invalid class name"));
+        return Err(FabricError::new(
+            ErrorCode::FormatInvalid,
+            "invalid class name",
+        ));
     }
     Ok(())
 }
@@ -235,11 +245,16 @@ extendable method net/minecraft/entity/Entity tick ()V
     #[test]
     fn unresolved_members_are_named() {
         let w = AccessWidener::parse(WIDENER).unwrap();
-        let missing = w
-            .unresolved(|owner, kind, name, _| owner == "net/minecraft/world/World" && kind == MemberKind::Class || name == "getBlockState")
-            ;
+        let missing = w.unresolved(|owner, kind, name, _| {
+            owner == "net/minecraft/world/World" && kind == MemberKind::Class
+                || name == "getBlockState"
+        });
         assert_eq!(missing.len(), 2, "{missing:?}");
-        let err = w.apply(|owner, _, name, _| owner == "net/minecraft/world/World" && name != "getBlockState").unwrap_err();
+        let err = w
+            .apply(|owner, _, name, _| {
+                owner == "net/minecraft/world/World" && name != "getBlockState"
+            })
+            .unwrap_err();
         assert_eq!(err.code, ErrorCode::AccessWidenerUnresolved);
         assert!(err.detail.unwrap().contains("getBlockState"));
     }

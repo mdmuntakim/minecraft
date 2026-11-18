@@ -101,7 +101,13 @@ impl MixinConfig {
                 .and_then(|c| c.get("horizon"))
                 .and_then(|h| h.get("rustMixins"))
                 .and_then(Value::as_array)
-                .map(|items| items.iter().filter_map(Value::as_str).map(str::to_owned).collect())
+                .map(|items| {
+                    items
+                        .iter()
+                        .filter_map(Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                })
                 .unwrap_or_default(),
         }
     }

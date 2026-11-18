@@ -44,6 +44,7 @@ my-mod.fabricmod
 | `FABRIC_ZIP_LIMIT` | Entry count or uncompressed size exceeds the caps. |
 | `FABRIC_UNSUPPORTED_JAVA` | The mod ships Java classes only. |
 | `FABRIC_MIXIN_JAVA_UNSUPPORTED` | A Java mixin class was supplied. |
+| `FABRIC_ENTRYPOINT_MISSING` | A declared entrypoint has no exported Rust symbol. |
 | `FABRIC_VERSION_CONFLICT` | Two ranges cannot both be satisfied. |
 | `FABRIC_VERSION_INVALID` | A version or range does not parse. |
 | `FABRIC_DEPENDENCY_MISSING` | A required dependency is absent. |
@@ -57,6 +58,7 @@ my-mod.fabricmod
 | `FABRIC_ICON_INVALID` | The icon is missing, not PNG, or over 512x512. |
 | `FABRIC_LOCKFILE_MISMATCH` | `fabric.lock` does not match the mod set. |
 | `FABRIC_DEPENDENCY_CYCLE` | The dependency graph has a cycle. |
+| `FABRIC_DUPLICATE_MOD` | Two mods claim the same id or alias. |
 | `FABRIC_MIGRATION_FAILED` | A legacy file could not be converted. |
 | `OFFLINE_ASSET_MISSING` | A bundled game file is absent. |
 | `OFFLINE_ASSET_CORRUPT` | A bundled game file fails its hash. |

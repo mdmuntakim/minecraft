@@ -70,14 +70,17 @@ impl Signature {
                 self.signature.clone(),
             )
         })?;
-        let key_bytes: [u8; 32] = key_bytes.try_into().map_err(|_| {
-            FabricError::new(ErrorCode::SignatureInvalid, "bad key length")
-        })?;
-        let sig_bytes: [u8; 64] = sig_bytes.try_into().map_err(|_| {
-            FabricError::new(ErrorCode::SignatureInvalid, "bad signature length")
-        })?;
+        let key_bytes: [u8; 32] = key_bytes
+            .try_into()
+            .map_err(|_| FabricError::new(ErrorCode::SignatureInvalid, "bad key length"))?;
+        let sig_bytes: [u8; 64] = sig_bytes
+            .try_into()
+            .map_err(|_| FabricError::new(ErrorCode::SignatureInvalid, "bad signature length"))?;
         let key = VerifyingKey::from_bytes(&key_bytes).map_err(|_| {
-            FabricError::new(ErrorCode::SignatureInvalid, "the mod's public key is not a curve point")
+            FabricError::new(
+                ErrorCode::SignatureInvalid,
+                "the mod's public key is not a curve point",
+            )
         })?;
         let signature = DalekSignature::from_bytes(&sig_bytes);
         key.verify(digest, &signature).map_err(|_| {
@@ -131,7 +134,8 @@ impl TrustStore {
     pub fn pin(&mut self, signature: &Signature) {
         let fingerprint = signature.fingerprint();
         self.revoked.remove(&fingerprint);
-        self.pinned.insert(fingerprint, signature.public_key.clone());
+        self.pinned
+            .insert(fingerprint, signature.public_key.clone());
     }
 
     /// Revokes a key, keeping its pin for the record.
@@ -141,6 +145,51 @@ impl TrustStore {
 
     pub fn is_pinned(&self, fingerprint: &str) -> bool {
         self.pinned.contains_key(fingerprint)
+    }
+
+    /// Reads a trust store from `path`.
+    pub fn read(path: &std::path::Path) -> Result<Self> {
+        let text = std::fs::read_to_string(path).map_err(|e| {
+            FabricError::with_detail(
+                ErrorCode::SignatureUntrusted,
+                "the trust store cannot be read",
+                format!("{}: {e}", path.display()),
+            )
+        })?;
+        serde_json::from_str(&text).map_err(|e| {
+            FabricError::with_detail(
+                ErrorCode::SignatureInvalid,
+                "the trust store is not valid",
+                e.to_string(),
+            )
+        })
+    }
+
+    /// Writes the store, creating its folder.
+    pub fn write(&self, path: &std::path::Path) -> Result<()> {
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).map_err(|e| {
+                FabricError::with_detail(
+                    ErrorCode::SignatureInvalid,
+                    "the trust store folder cannot be created",
+                    e.to_string(),
+                )
+            })?;
+        }
+        let text = serde_json::to_string_pretty(self).map_err(|e| {
+            FabricError::with_detail(
+                ErrorCode::SignatureInvalid,
+                "the trust store cannot be written",
+                e.to_string(),
+            )
+        })?;
+        std::fs::write(path, text).map_err(|e| {
+            FabricError::with_detail(
+                ErrorCode::SignatureInvalid,
+                "the trust store cannot be written",
+                format!("{}: {e}", path.display()),
+            )
+        })
     }
 }
 
@@ -178,7 +227,7 @@ pub fn verify_with_consent(
     }
 }
 
-pub(crate) fn hex(bytes: &[u8]) -> String {
+pub fn hex(bytes: &[u8]) -> String {
     let mut out = String::with_capacity(bytes.len() * 2);
     for byte in bytes {
         out.push_str(&format!("{byte:02x}"));
@@ -220,7 +269,10 @@ mod tests {
         signature.verify(&digest()).unwrap();
         let mut other = digest();
         other[0] ^= 1;
-        assert_eq!(signature.verify(&other).unwrap_err().code, ErrorCode::SignatureInvalid);
+        assert_eq!(
+            signature.verify(&other).unwrap_err().code,
+            ErrorCode::SignatureInvalid
+        );
     }
 
     #[test]

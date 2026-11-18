@@ -15,7 +15,7 @@ pub mod mixin;
 pub mod signature;
 pub mod version;
 
-pub use container::{Container, File, Limits, FORMAT_VERSION, MIME};
+pub use container::{Container, FORMAT_VERSION, File, Limits, MIME};
 pub use error::{ErrorCode, FabricError, Result};
 pub use manifest::{Environment, Manifest, Requirement};
 pub use signature::{Signature, Trust, TrustStore};

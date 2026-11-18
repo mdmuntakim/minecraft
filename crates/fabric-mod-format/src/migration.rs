@@ -51,7 +51,11 @@ impl MigrationReport {
             self.migrated.len(),
             self.skipped.len(),
             self.failed.len(),
-            if self.already_done { " (migration already done)" } else { "" }
+            if self.already_done {
+                " (migration already done)"
+            } else {
+                ""
+            }
         )
     }
 }
@@ -71,7 +75,9 @@ pub fn migrate_dir(mods: &Path, force: bool) -> MigrationReport {
     let mut paths: Vec<PathBuf> = read
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.is_file() && extension(p).is_some_and(|e| LEGACY_EXTENSIONS.contains(&e.as_str())))
+        .filter(|p| {
+            p.is_file() && extension(p).is_some_and(|e| LEGACY_EXTENSIONS.contains(&e.as_str()))
+        })
         .collect();
     paths.sort();
     if paths.is_empty() {
@@ -85,7 +91,9 @@ pub fn migrate_dir(mods: &Path, force: bool) -> MigrationReport {
     for path in paths {
         match migrate_file(&path, mods, &backup) {
             Ok(migrated) => report.migrated.push(migrated),
-            Err(err) => report.failed.push(format!("{}: {}", path.display(), err.log_line())),
+            Err(err) => report
+                .failed
+                .push(format!("{}: {}", path.display(), err.log_line())),
         }
     }
     if report.failed.is_empty() {
@@ -97,16 +105,31 @@ pub fn migrate_dir(mods: &Path, force: bool) -> MigrationReport {
 /// Migrates one file. The original is moved, never removed.
 pub fn migrate_file(path: &Path, mods: &Path, backup: &Path) -> Result<Migrated> {
     let legacy_kind = extension(path).ok_or_else(|| {
-        FabricError::with_detail(ErrorCode::MigrationFailed, "not a legacy mod", path.display().to_string())
+        FabricError::with_detail(
+            ErrorCode::MigrationFailed,
+            "not a legacy mod",
+            path.display().to_string(),
+        )
     })?;
     let metadata = fs::metadata(path).map_err(|e| {
-        FabricError::with_detail(ErrorCode::MigrationFailed, "the legacy mod cannot be read", format!("{}: {e}", path.display()))
+        FabricError::with_detail(
+            ErrorCode::MigrationFailed,
+            "the legacy mod cannot be read",
+            format!("{}: {e}", path.display()),
+        )
     })?;
     if metadata.len() > MAX_LEGACY {
-        return Err(FabricError::new(ErrorCode::ZipLimit, "the legacy mod is too large"));
+        return Err(FabricError::new(
+            ErrorCode::ZipLimit,
+            "the legacy mod is too large",
+        ));
     }
     let bytes = fs::read(path).map_err(|e| {
-        FabricError::with_detail(ErrorCode::MigrationFailed, "the legacy mod cannot be read", format!("{}: {e}", path.display()))
+        FabricError::with_detail(
+            ErrorCode::MigrationFailed,
+            "the legacy mod cannot be read",
+            format!("{}: {e}", path.display()),
+        )
     })?;
     let fallback = sanitize_id(
         path.file_stem()
@@ -115,7 +138,11 @@ pub fn migrate_file(path: &Path, mods: &Path, backup: &Path) -> Result<Migrated>
     );
     let (manifest_text, files) = migrate_bytes(&bytes, &fallback, &legacy_kind)?;
     let id = Container::new(&manifest_text)?.manifest.id;
-    let to = mods.join(format!("{id}.{}.{}", short_hash(&bytes), container::EXTENSION));
+    let to = mods.join(format!(
+        "{id}.{}.{}",
+        short_hash(&bytes),
+        container::EXTENSION
+    ));
     let container = {
         let mut c = Container::new(&manifest_text)?;
         for (name, data) in files {
@@ -142,7 +169,11 @@ pub fn migrate_file(path: &Path, mods: &Path, backup: &Path) -> Result<Migrated>
 
 /// Converts legacy bytes into a manifest and a set of files. Public so tests
 /// and the CLI can inspect a conversion without touching the disk.
-pub fn migrate_bytes(bytes: &[u8], fallback_id: &str, legacy_kind: &str) -> Result<(String, BTreeMap<String, Vec<u8>>)> {
+pub fn migrate_bytes(
+    bytes: &[u8],
+    fallback_id: &str,
+    legacy_kind: &str,
+) -> Result<(String, BTreeMap<String, Vec<u8>>)> {
     if bytes.len() < 4 || &bytes[..4] != b"PK\x03\x04" {
         return Err(FabricError::with_detail(
             ErrorCode::MigrationFailed,
@@ -151,21 +182,36 @@ pub fn migrate_bytes(bytes: &[u8], fallback_id: &str, legacy_kind: &str) -> Resu
         ));
     }
     let mut zip = zip::ZipArchive::new(Cursor::new(bytes)).map_err(|e| {
-        FabricError::with_detail(ErrorCode::MigrationFailed, "the legacy mod is damaged", e.to_string())
+        FabricError::with_detail(
+            ErrorCode::MigrationFailed,
+            "the legacy mod is damaged",
+            e.to_string(),
+        )
     })?;
     if zip.len() > 4096 {
-        return Err(FabricError::new(ErrorCode::ZipLimit, "the legacy mod has too many entries"));
+        return Err(FabricError::new(
+            ErrorCode::ZipLimit,
+            "the legacy mod has too many entries",
+        ));
     }
     let mut entries: BTreeMap<String, Vec<u8>> = BTreeMap::new();
     for index in 0..zip.len() {
         let mut entry = zip.by_index(index).map_err(|e| {
-            FabricError::with_detail(ErrorCode::MigrationFailed, "a legacy entry cannot be read", e.to_string())
+            FabricError::with_detail(
+                ErrorCode::MigrationFailed,
+                "a legacy entry cannot be read",
+                e.to_string(),
+            )
         })?;
         if entry.is_dir() {
             continue;
         }
         let raw_name = entry.name().map_err(|e| {
-            FabricError::with_detail(ErrorCode::MigrationFailed, "a legacy entry name is not valid UTF-8", e.to_string())
+            FabricError::with_detail(
+                ErrorCode::MigrationFailed,
+                "a legacy entry name is not valid UTF-8",
+                e.to_string(),
+            )
         })?;
         let name = container::canonical_name(&raw_name)?;
         let mut data = Vec::new();
@@ -174,14 +220,18 @@ pub fn migrate_bytes(bytes: &[u8], fallback_id: &str, legacy_kind: &str) -> Resu
             .take((256u64 << 20) + 1)
             .read_to_end(&mut data)
             .map_err(|e| {
-                FabricError::with_detail(ErrorCode::MigrationFailed, "a legacy entry is damaged", format!("{name}: {e}"))
+                FabricError::with_detail(
+                    ErrorCode::MigrationFailed,
+                    "a legacy entry is damaged",
+                    format!("{name}: {e}"),
+                )
             })?;
         entries.insert(name, data);
     }
     if entries.contains_key(MANIFEST_ENTRY) {
-        let text = String::from_utf8(entries.remove(MANIFEST_ENTRY).unwrap_or_default()).map_err(|_| {
-            FabricError::new(ErrorCode::MigrationFailed, "fabric.mod.json is not UTF-8")
-        })?;
+        let text = String::from_utf8(entries.remove(MANIFEST_ENTRY).unwrap_or_default()).map_err(
+            |_| FabricError::new(ErrorCode::MigrationFailed, "fabric.mod.json is not UTF-8"),
+        )?;
         // Already a fabric container with a legacy name: only the extension
         // changes. Drop a stale signature, since the bytes may have changed.
         entries.remove(SIGNATURE_ENTRY);
@@ -194,9 +244,14 @@ pub fn migrate_bytes(bytes: &[u8], fallback_id: &str, legacy_kind: &str) -> Resu
             let text = String::from_utf8(toml_bytes).map_err(|_| {
                 FabricError::new(ErrorCode::MigrationFailed, "horizon-mod.toml is not UTF-8")
             })?;
-            let value: toml::Value = text.parse::<toml::Value>().map_err(|e: toml::de::Error| {
-                FabricError::with_detail(ErrorCode::MigrationFailed, "horizon-mod.toml is not valid TOML", e.to_string())
-            })?;
+            let value: toml::Value =
+                text.parse::<toml::Value>().map_err(|e: toml::de::Error| {
+                    FabricError::with_detail(
+                        ErrorCode::MigrationFailed,
+                        "horizon-mod.toml is not valid TOML",
+                        e.to_string(),
+                    )
+                })?;
             let id = value
                 .get("id")
                 .and_then(toml::Value::as_str)
@@ -222,7 +277,12 @@ pub fn migrate_bytes(bytes: &[u8], fallback_id: &str, legacy_kind: &str) -> Resu
             let authors = value
                 .get("authors")
                 .and_then(toml::Value::as_array)
-                .map(|a| a.iter().filter_map(toml::Value::as_str).map(str::to_owned).collect())
+                .map(|a| {
+                    a.iter()
+                        .filter_map(toml::Value::as_str)
+                        .map(str::to_owned)
+                        .collect()
+                })
                 .unwrap_or_default();
             let api = value
                 .get("api")
@@ -293,7 +353,11 @@ pub fn migrate_bytes(bytes: &[u8], fallback_id: &str, legacy_kind: &str) -> Resu
         object.remove("extra");
     }
     let text = serde_json::to_string_pretty(&manifest).map_err(|e| {
-        FabricError::with_detail(ErrorCode::MigrationFailed, "the migrated manifest cannot be written", e.to_string())
+        FabricError::with_detail(
+            ErrorCode::MigrationFailed,
+            "the migrated manifest cannot be written",
+            e.to_string(),
+        )
     })?;
     // Never produce a manifest the reader would reject.
     crate::manifest::Manifest::parse(&text)?;
@@ -346,7 +410,9 @@ pub fn legacy_files(dir: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = read
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.is_file() && extension(p).is_some_and(|e| LEGACY_EXTENSIONS.contains(&e.as_str())))
+        .filter(|p| {
+            p.is_file() && extension(p).is_some_and(|e| LEGACY_EXTENSIONS.contains(&e.as_str()))
+        })
         .collect();
     found.sort();
     found
@@ -407,7 +473,10 @@ authors = ["Someone"]
         let manifest = crate::manifest::Manifest::parse(&text).unwrap();
         assert_eq!(manifest.id, "native-thing");
         assert!(files.contains_key("lib/arm64-v8a/libarm64.so"));
-        assert_eq!(manifest.native_library().as_deref(), Some("lib/arm64-v8a/libarm64.so"));
+        assert_eq!(
+            manifest.native_library().as_deref(),
+            Some("lib/arm64-v8a/libarm64.so")
+        );
     }
 
     #[test]
@@ -437,8 +506,16 @@ authors = ["Someone"]
         let dir = tempfile::tempdir().unwrap();
         let mods = dir.path();
         let toml = b"id = \"old\"\nname = \"Old\"\nversion = \"1.0.0\"\n";
-        fs::write(mods.join("old.hmod"), legacy_zip(&[("horizon-mod.toml", toml)])).unwrap();
-        fs::write(mods.join("n.hnmod"), legacy_zip(&[("lib.so", b"\x7fELF"), ("assets/a.txt", b"a")])).unwrap();
+        fs::write(
+            mods.join("old.hmod"),
+            legacy_zip(&[("horizon-mod.toml", toml)]),
+        )
+        .unwrap();
+        fs::write(
+            mods.join("n.hnmod"),
+            legacy_zip(&[("lib.so", b"\x7fELF"), ("assets/a.txt", b"a")]),
+        )
+        .unwrap();
         let report = migrate_dir(mods, false);
         assert_eq!(report.migrated.len(), 2, "{report:?}");
         assert!(report.failed.is_empty(), "{report:?}");
@@ -448,7 +525,11 @@ authors = ["Someone"]
         let fabric: Vec<_> = fs::read_dir(mods)
             .unwrap()
             .flatten()
-            .filter(|e| e.path().extension().is_some_and(|x| x == container::EXTENSION))
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .is_some_and(|x| x == container::EXTENSION)
+            })
             .collect();
         assert_eq!(fabric.len(), 2);
         let again = migrate_dir(mods, false);
