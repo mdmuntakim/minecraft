@@ -18,7 +18,7 @@ use std::{io::Read, path::Path};
 /// The index format this build reads and writes. A reader refuses a newer
 /// one rather than misread it.
 pub const SCHEMA: u32 = 1;
-/// The biggest file the registry takes (a `.hmod` with content, a `.hpack`).
+/// The biggest file the registry takes (a `.fabricmod` with content, a `.hpack`).
 pub const MAX_FILE: u64 = 64 << 20;
 /// Where files may be downloaded from: the registry's release assets.
 pub const FILE_HOST: &str = "https://github.com/horizon-rust/horizon-mods/releases/download/";
@@ -41,10 +41,11 @@ pub struct Index {
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(from = "String", into = "String")]
 pub enum Kind {
-    /// A `.hmod` of content only.
+    /// A `.fabricmod` of content only.
     Mod,
-    /// A source-only native mixin bundle, compiled into an isolated game build. Published as an
-    /// `.hnmod` until launchers and the game read native `.hmod`s (#5865, docs/api/mod-files.md).
+    /// A source-only native mixin bundle, compiled into an isolated game build. Published as a
+    /// `.fabricmod`; launchers and the game read native `.fabricmod`s since #5865
+    /// (docs/api/mod-files.md).
     NativeMod,
     /// A `.hpack`: registry mods played together as a profile.
     Modpack,
@@ -71,8 +72,8 @@ impl Kind {
     /// The extension of its files; None for a kind this build doesn't know.
     pub fn extension(&self) -> Option<&'static str> {
         match self {
-            Kind::Mod => Some("hmod"),
-            Kind::NativeMod => Some("hnmod"),
+            Kind::Mod => Some("fabricmod"),
+            Kind::NativeMod => Some("fabricmod"),
             Kind::Modpack => Some("hpack"),
             Kind::ResourcePack => Some("zip"),
             Kind::Shader => Some(horizon_shader_api::EXTENSION),
@@ -560,7 +561,7 @@ pub fn inspect(kind: &Kind, path: &Path) -> Result<Facts, String> {
     match kind {
         Kind::NativeMod => {
             let facts = native::Bundle::read(path)?.manifest.facts();
-            // A `.hmod` with content too: checked as the game reads it.
+            // A `.fabricmod` with content too: checked as the game reads it.
             if Package::has_manifest(path) {
                 let m = Package::read(path)?.manifest;
                 crate::Content::read(path, &m)?;

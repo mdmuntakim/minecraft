@@ -10,9 +10,9 @@ use std::{
 };
 
 pub const FILE: &str = "horizon-mods.txt";
-/// The folder holding `.hmod` files, beside `options.txt`.
+/// The folder holding `.fabricmod` files, beside `options.txt`.
 pub const DIR: &str = "horizon-mods";
-/// Where the launcher installs native mods (`<id>.hnmod`), beside [`DIR`]. They run only in a
+/// Where the launcher installs native mods (`<id>.fabricmod`), beside [`DIR`]. They run only in a
 /// game the launcher built with them.
 pub const NATIVE_DIR: &str = "horizon-native-mods";
 /// Why a native mod installed in [`NATIVE_DIR`] doesn't run in this game.

@@ -51,7 +51,7 @@ pub struct DiscoveryFailure {
 pub struct Discovery {
     pub mods: Vec<Discovered>,
     pub failures: Vec<DiscoveryFailure>,
-    /// `.hmod` / `.hnmod` files waiting for the one-time migration.
+    /// `.fabricmod` files, and the legacy `.hmod` / `.hnmod` waiting for the one-time migration.
     pub legacy: Vec<PathBuf>,
     pub elapsed_ms: f64,
 }

@@ -553,7 +553,7 @@ fn trust_label(trust: Trust) -> &'static str {
 /// The game folder path a registry project's file goes to.
 fn relative(kind: Kind, id: &str, file_name: &str) -> Result<String, String> {
     match kind {
-        Kind::Mod => Ok(format!("{}/{id}.hmod", java::MODS_DIR)),
+        Kind::Mod => Ok(format!("{}/{id}.fabricmod", java::MODS_DIR)),
         Kind::ResourcePack => Ok(format!("resourcepacks/{file_name}")),
         Kind::Shader => Ok(format!("shaderpacks/{file_name}")),
         Kind::Modpack => Err("A modpack installs as its own profile (pack::install).".into()),
@@ -563,7 +563,7 @@ fn relative(kind: Kind, id: &str, file_name: &str) -> Result<String, String> {
 
 /// Installs a registry project into the game folder `home`: its newest version for this game that
 /// the game the player runs can load, downloaded into `mod-browser/downloads/`, checked against
-/// the index, then moved into place. A mod is `horizon-mods/<id>.hmod`, turned on in
+/// the index, then moved into place. A mod is `horizon-mods/<id>.fabricmod`, turned on in
 /// `horizon-mods.txt`.
 pub fn install(
     project: &Project,
@@ -620,11 +620,11 @@ fn newest<'a>(
 const NEEDS_NEWER: &str = "needs a newer Horizon than the game you play";
 const NEEDS_PORT: &str = "needs a native port: Horizon doesn't run WebAssembly mods any more";
 
-/// Whether version `v` is a WebAssembly mod with code: a `.hmod` that may do more than add
+/// Whether version `v` is a WebAssembly mod with code: a `.fabricmod` that may do more than add
 /// content. The registry keeps it for the modpacks that need it; a modpack installs it with its
 /// code left out (the game doesn't run it), and the browser neither lists nor installs it.
 pub fn needs_port(v: &index::Version) -> bool {
-    v.file.name.ends_with(".hmod")
+    v.file.name.ends_with(".fabricmod")
         && v.capabilities
             .iter()
             .any(|c| *c != horizon_mods::Capability::Registries)
@@ -651,7 +651,7 @@ fn install_version(
     }
     let native = p.kind == index::Kind::NativeMod;
     let relative = match native {
-        true => format!("{}/{}.hnmod", crate::native_mods::INSTALLED, p.id),
+        true => format!("{}/{}.fabricmod", crate::native_mods::INSTALLED, p.id),
         false => relative(project.kind, &p.id, &v.file.name)?,
     };
     let mut list = installed::Installed::load(home);
@@ -736,20 +736,20 @@ fn install_version(
 }
 
 /// Whether an update to a native version keeps the old file `old`: a mod that turned native
-/// keeps its `.hmod` until the player builds the game with the new version. The game runs it
+/// keeps its `.fabricmod` until the player builds the game with the new version. The game runs it
 /// meanwhile and skips it once the native one is built in; removing the mod removes both.
 fn stays(native: bool, old: &str) -> bool {
-    native && old.ends_with(".hmod")
+    native && old.ends_with(".fabricmod")
 }
 
-/// The mod id of an installed mod (`horizon-mods/<id>`, `horizon-mods/<id>.hmod` or
-/// `horizon-native-mods/<id>.hnmod`).
+/// The mod id of an installed mod (`horizon-mods/<id>`, `horizon-mods/<id>.fabricmod` or
+/// `horizon-native-mods/<id>.fabricmod`).
 pub fn mod_id(entry: &installed::Entry) -> Option<&str> {
     if let Some(rest) = entry.file.strip_prefix(crate::native_mods::INSTALLED) {
-        return rest.strip_prefix('/')?.strip_suffix(".hnmod");
+        return rest.strip_prefix('/')?.strip_suffix(".fabricmod");
     }
     let rest = entry.file.strip_prefix(java::MODS_DIR)?.strip_prefix('/')?;
-    Some(rest.strip_suffix(".hmod").unwrap_or(rest))
+    Some(rest.strip_suffix(".fabricmod").unwrap_or(rest))
 }
 
 /// Turns the registry's files that were taken down off in the game folder `home`, and says

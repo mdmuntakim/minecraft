@@ -29,7 +29,7 @@ clippy-android, fmt, test, raw CMD). On the VM: `~/sync4`, `~/sync4-target`, `~/
   (far-view, fps-overlay, keystrokes, minimap, recipes, zoom) and the SDK examples.
 - Create: own block states (`states`, `own-states.json`) and so placement orientation and belt
   funnels (`belt_funnel_for`); `fuel` on items; the support and occlusion part of `properties.shape`.
-  The local .hmod data has to move to `state_properties` and `components`.
+  The local .fabricmod data has to move to `state_properties` and `components`.
 - Create New World's "Mods & Data Packs": upstream's Data Packs screen stays; a new world plays with
   the running mods; the phone's `datapacks` folder choice.
 - Stack tooltip grids; Starling's remote item displays (upstream's `text_displays` instead).

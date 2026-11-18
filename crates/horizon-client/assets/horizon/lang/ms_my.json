@@ -88,7 +88,7 @@
   "horizon.pages.open.controller_binds": "Controller Binds...",
   "horizon.pages.open.horizon_settings": "Tetapan Horizon...",
   "horizon.pages.open.music": "Musik...",
-  "horizon.mods.empty": "Tiada mod: letak fail .hmod di dalam folder mod horizon",
+  "horizon.mods.empty": "Tiada mod: letak fail .fabricmod di dalam folder mod horizon",
   "horizon.mods.stopped": " (Stopped)",
   "horizon.mods.not_built": " (Not built)",
   "horizon.mods.dev": " (Dev)",

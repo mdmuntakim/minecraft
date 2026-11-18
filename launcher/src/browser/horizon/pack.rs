@@ -190,11 +190,11 @@ mod tests {
 
     /// A local registry: the mod and a pack of it, as `file://` files.
     fn registry(dir: &Path, on: bool, extra: &str) -> Index {
-        let hmod_src = Path::new(env!("CARGO_MANIFEST_DIR"))
-            .join("../crates/horizon-mods/tests/index/coords_hud-0.1.0.hmod");
-        let hmod = dir.join("coords_hud-0.1.0.hmod");
-        fs::copy(hmod_src, &hmod).unwrap();
-        let hmod_sha = idx::sha256_file(&hmod).unwrap();
+        let fabric_src = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../crates/horizon-mods/tests/index/coords_hud-0.1.0.fabricmod");
+        let fabric = dir.join("coords_hud-0.1.0.fabricmod");
+        fs::copy(fabric_src, &fabric).unwrap();
+        let fabric_sha = idx::sha256_file(&fabric).unwrap();
         let hpack = dir.join("cozy-1.0.0.hpack");
         let mut zip = zip::ZipWriter::new(fs::File::create(&hpack).unwrap());
         let o = zip::write::SimpleFileOptions::default();
@@ -202,7 +202,7 @@ mod tests {
         write!(
             zip,
             "format = 1\nid = \"cozy\"\nname = \"Cozy\"\nversion = \"1.0.0\"\ngame = \"26.3\"\n\
-             [[mods]]\nid = \"coords_hud\"\nversion = \"0.1.0\"\nsha256 = \"{hmod_sha}\"\non = {on}\n"
+             [[mods]]\nid = \"coords_hud\"\nversion = \"0.1.0\"\nsha256 = \"{fabric_sha}\"\non = {on}\n"
         )
         .unwrap();
         zip.start_file("overrides/options.txt", o).unwrap();
@@ -223,15 +223,15 @@ mod tests {
             r#"{{"schema": 1, "projects": [
               {{"id": "coords_hud", "kind": "mod", "name": "Coordinates HUD", "summary": "", "license": "MIT",
                 "source": "https://x.test", "versions": [{{"version": "0.1.0", "api": "0.1", "side": "client",
-                "capabilities": ["game-read", "hud", "chat"], "game": "26.3", "file": {{"name": "coords_hud-0.1.0.hmod",
-                "url": "file://{}", "size": {}, "sha256": "{hmod_sha}"}}}}]}},
+                "capabilities": ["game-read", "hud", "chat"], "game": "26.3", "file": {{"name": "coords_hud-0.1.0.fabricmod",
+                "url": "file://{}", "size": {}, "sha256": "{fabric_sha}"}}}}]}},
               {{"id": "cozy", "kind": "modpack", "name": "Cozy", "summary": "", "license": "MIT",
                 "source": "https://x.test", "versions": [{{"version": "1.0.0", "api": "1", "game": "26.3",
-                "requires": [{{"id": "coords_hud", "version": "0.1.0", "sha256": "{hmod_sha}"}}],
+                "requires": [{{"id": "coords_hud", "version": "0.1.0", "sha256": "{fabric_sha}"}}],
                 "file": {{"name": "cozy-1.0.0.hpack", "url": "file://{}", "size": {}, "sha256": "{}"}}}}]}}
             ]{extra}}}"#,
-            url(&hmod),
-            size(&hmod),
+            url(&fabric),
+            size(&fabric),
             url(&hpack),
             size(&hpack),
             idx::sha256_file(&hpack).unwrap()
@@ -257,7 +257,7 @@ mod tests {
         let pack = install_in(&index, true, "cozy", &packs, &|_, _| {}).unwrap();
         assert_eq!(pack.mods, ["coords_hud 0.1.0"]);
         let home = home(&packs.join("cozy"));
-        assert!(home.join("horizon-mods/coords_hud.hmod").is_file());
+        assert!(home.join("horizon-mods/coords_hud.fabricmod").is_file());
         assert!(
             !java::is_enabled(&home, "coords_hud"),
             "the pack turns it off"

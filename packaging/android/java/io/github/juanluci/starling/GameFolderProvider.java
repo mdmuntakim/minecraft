@@ -140,7 +140,7 @@ public final class GameFolderProvider extends DocumentsProvider {
         String extension = dot < 0 ? "" : name.substring(dot + 1).toLowerCase(Locale.ROOT);
         switch (extension) {
             case "zip":
-            case "hmod":
+            case "fabricmod":
             case "hshader":
                 return "application/zip";
             case "json":

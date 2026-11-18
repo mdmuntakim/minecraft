@@ -8,15 +8,14 @@ pub const MANIFEST: &str = "horizon-native.json";
 /// Why a native mod may not carry `mod.wasm`: WebAssembly mods don't run any more.
 pub const WASM_GONE: &str = "mod.wasm: WebAssembly mods don't run any more, port the code to a native mod (docs/native-mods.md)";
 
-/// Whether `path` names a native mod's file: an `.hnmod`, or a `.hmod` holding native code
+/// Whether `path` names a native mod's file: a `.fabricmod` holding native code
 /// (one file for content and code, docs/native-mods.md).
 pub fn is_file(path: &Path) -> bool {
-    path.extension()
-        .is_some_and(|e| e == "hnmod" || e == "hmod")
+    path.extension().is_some_and(|e| e == "fabricmod")
 }
 
-/// Whether the mod file at `path` carries native code ([`MANIFEST`]): every `.hnmod`, and a
-/// `.hmod` with code beside or instead of its content.
+/// Whether the mod file at `path` carries native code ([`MANIFEST`]): every `.fabricmod`, and a
+/// `.fabricmod` with code beside or instead of its content.
 pub fn holds(path: &Path) -> bool {
     std::fs::File::open(path)
         .ok()
@@ -24,7 +23,7 @@ pub fn holds(path: &Path) -> bool {
         .is_some_and(|mut zip| zip.by_name(MANIFEST).is_ok())
 }
 
-/// Whether a `.hmod`'s entry `name` is its content's (`horizon-mod.toml`, `assets/`, `data/`),
+/// Whether a `.fabricmod`'s entry `name` is its content's (`horizon-mod.toml`, `assets/`, `data/`),
 /// which [`crate::Content`] reads and checks, not the native build.
 fn content(name: &str) -> bool {
     name == crate::manifest::MANIFEST || name.starts_with("assets/") || name.starts_with("data/")
@@ -92,7 +91,7 @@ impl Manifest {
 pub struct Bundle {
     pub manifest: Manifest,
     /// Validated relative paths: Rust and TOML, plus files under `mixins/<id>/data/` or a
-    /// `data/` folder deeper in (a crate's). A `.hmod`'s content files are not among them.
+    /// `data/` folder deeper in (a crate's). A `.fabricmod`'s content files are not among them.
     pub files: BTreeMap<String, Vec<u8>>,
 }
 
@@ -260,8 +259,10 @@ mod tests {
         }
     }
     fn read(name: &str, extras: &[(&str, &[u8])], mixin: &str) -> Result<Bundle, String> {
-        let path =
-            std::env::temp_dir().join(format!("native-bundle-{name}-{}.hnmod", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "native-bundle-{name}-{}.fabricmod",
+            std::process::id()
+        ));
         let mut zip = zip::ZipWriter::new(std::fs::File::create(&path).unwrap());
         let options = zip::write::SimpleFileOptions::default();
         zip.start_file(MANIFEST, options).unwrap();
@@ -329,8 +330,10 @@ mod tests {
                 "mixins/veinminer/horizon-mixin.toml"
             ]
         );
-        let path =
-            std::env::temp_dir().join(format!("native-bundle-sent-{}.hnmod", std::process::id()));
+        let path = std::env::temp_dir().join(format!(
+            "native-bundle-sent-{}.fabricmod",
+            std::process::id()
+        ));
         std::fs::write(&path, &sent).unwrap();
         let again = Bundle::read(&path);
         std::fs::remove_file(path).unwrap();

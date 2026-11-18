@@ -84,8 +84,8 @@ fn a_repository_resolves_to_its_latest_releases_hnmod_and_commit() {
             release(
                 "v1",
                 json!([
-                    asset("zoom.hmod", None),
-                    asset("zoom-1.hnmod", Some(&digest))
+                    asset("zoom.fabricmod", None),
+                    asset("zoom-1.fabricmod", Some(&digest))
                 ]),
             ),
         ),
@@ -97,7 +97,7 @@ fn a_repository_resolves_to_its_latest_releases_hnmod_and_commit() {
         (Some("v1"), SHA)
     );
     let file = found.asset.unwrap();
-    assert_eq!(file.name, "zoom-1.hnmod");
+    assert_eq!(file.name, "zoom-1.fabricmod");
     assert_eq!(file.sha256, Some("ab".repeat(32)));
     assert_eq!(found.content_only, None);
 }
@@ -107,19 +107,19 @@ fn a_release_with_no_hnmod_falls_back_to_its_commit_and_remembers_a_content_mod(
     let api = recorded(vec![
         (
             "repos/acme/zoom/releases/latest",
-            release("v1", json!([asset("zoom.hmod", None)])),
+            release("v1", json!([asset("zoom.fabricmod", None)])),
         ),
         ("repos/acme/zoom/commits/v1", json!({ "sha": SHA })),
     ]);
     let found = resolve(&link("https://github.com/acme/zoom"), &api).unwrap();
     assert_eq!(found.asset, None);
-    assert_eq!(found.content_only.as_deref(), Some("zoom.hmod"));
+    assert_eq!(found.content_only.as_deref(), Some("zoom.fabricmod"));
     assert_eq!(found.commit, SHA);
 }
 
 #[test]
 fn an_asset_from_another_host_is_ignored() {
-    let evil = json!({ "name": "x.hnmod", "browser_download_url": "https://evil.example/x.hnmod" });
+    let evil = json!({ "name": "x.fabricmod", "browser_download_url": "https://evil.example/x.fabricmod" });
     let api = recorded(vec![
         (
             "repos/acme/zoom/releases/latest",
@@ -374,7 +374,7 @@ fn installing_records_the_origin_and_updates_follow_releases_or_the_head() {
     // A release's mod follows the latest release.
     let release = Origin {
         tag: Some("v1".into()),
-        asset: Some("zoom.hnmod".into()),
+        asset: Some("zoom.fabricmod".into()),
         ..origin.clone()
     };
     assert_eq!(release.label(), "acme/zoom @ v1");
@@ -392,7 +392,7 @@ fn installing_records_the_origin_and_updates_follow_releases_or_the_head() {
         }
     ));
     // A file that isn't from GitHub is never replaced.
-    write(&home.join(INSTALLED).join("keys.hnmod"), "x");
+    write(&home.join(INSTALLED).join("keys.fabricmod"), "x");
     let other = Packed {
         id: "keys".into(),
         ..packed("keys")
@@ -402,7 +402,7 @@ fn installing_records_the_origin_and_updates_follow_releases_or_the_head() {
         .contains("not from GitHub"));
     assert!(remove(&home, "zoom").unwrap());
     assert!(!remove(&home, "zoom").unwrap());
-    assert!(!home.join(INSTALLED).join("zoom.hnmod").exists());
+    assert!(!home.join(INSTALLED).join("zoom.fabricmod").exists());
     assert!(!java::is_enabled(&home, "zoom"));
     let _ = fs::remove_dir_all(home);
     let _ = fs::remove_dir_all(source);

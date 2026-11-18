@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Starling's mod build service (docs/starling-native-mods.md).
 
-A phone sends its native mods (`.hnmod`); this compiles the game with them, in a sandbox, one build at
+A phone sends its native mods (`.fabricmod`); this compiles the game with them, in a sandbox, one build at
 a time, and hands back the library. Python's standard library only.
 
     POST /v1/build?version=V   body: for each mod, its length (4 bytes, big-endian) and its file
@@ -132,7 +132,7 @@ def unpack(files, work):
     (work / "mods").mkdir(parents=True)
     seen = set()
     for i, mod in enumerate(files):
-        path = work / f"{i}.hnmod"
+        path = work / f"{i}.fabricmod"
         path.write_bytes(mod)
         mod_id, entries = read_bundle(path)
         path.unlink()

@@ -353,8 +353,8 @@ pub fn project(entry: &Entry, src: &Sources) -> Result<Project, Vec<String>> {
     let mut versions = Vec::new();
     for v in &entry.versions {
         match version(entry, v, src) {
-            // A mod that turned native keeps its `.hmod` versions published, but the index offers
-            // only its native ones: a launcher never installs a content-only `.hmod` as a native mod.
+            // A mod that turned native keeps its `.fabricmod` versions published, but the index offers
+            // only its native ones: a launcher never installs a content-only `.fabricmod` as a native mod.
             Ok(_) if file_kind(entry, v, &src.files.join(&v.sha256)) != entry.kind => {}
             Ok(v) => versions.push(v),
             Err(e) => errors.push(format!("{id} {}: {e}", v.version)),
@@ -384,11 +384,13 @@ pub fn project(entry: &Entry, src: &Sources) -> Result<Project, Vec<String>> {
     })
 }
 
-/// The kind of a version's file at `path`: the project's, but a `.hmod` without native code of a
+/// The kind of a version's file at `path`: the project's, but a `.fabricmod` without native code of a
 /// mod that turned native (`review`) is from before it did.
 fn file_kind(entry: &Entry, v: &EntryVersion, path: &Path) -> Kind {
     match entry.kind {
-        Kind::NativeMod if v.file.ends_with(".hmod") && !super::native::holds(path) => Kind::Mod,
+        Kind::NativeMod if v.file.ends_with(".fabricmod") && !super::native::holds(path) => {
+            Kind::Mod
+        }
         _ => entry.kind.clone(),
     }
 }
@@ -622,7 +624,7 @@ pub fn review(base: &[Entry], head: &[Entry], author: &str) -> Review {
         }
         if (&old.kind, &new.kind) == (&Kind::Mod, &Kind::NativeMod) {
             r.notes.push(format!(
-                "{}: turns native; its content-only .hmod versions stay published, and launchers keep the installed copies",
+                "{}: turns native; its content-only .fabricmod versions stay published, and launchers keep the installed copies",
                 old.id
             ));
         } else if new.kind != old.kind {

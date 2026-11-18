@@ -105,9 +105,7 @@ impl Options {
             }
             if let Some(name) = arg.strip_prefix("--") {
                 if name == "dir" {
-                    let value = args
-                        .get(index + 1)
-                        .ok_or("--dir needs a value")?;
+                    let value = args.get(index + 1).ok_or("--dir needs a value")?;
                     options.dir = PathBuf::from(value);
                     index += 2;
                     continue;

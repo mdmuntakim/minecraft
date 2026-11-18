@@ -779,7 +779,7 @@ fn component_types(map: &J) -> BTreeSet<String> {
 
 /// Blocks and items native mods declare in code (`native_blocks`,
 /// `native_items`), joined to the content mods: each namespace's go into
-/// the content mod of that id when one is on (a native mod's own `.hmod`,
+/// the content mod of that id when one is on (a native mod's own `.fabricmod`,
 /// with its models and textures), else into a content mod with no files of
 /// its own. Checked as files are ([`horizon_mods::Content::declare`],
 /// [`accept_mod`]); a namespace whose declarations are refused is left out
