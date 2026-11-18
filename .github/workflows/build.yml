@@ -129,7 +129,7 @@ jobs:
             echo "## Starling APK built from source"
             echo
             echo "- Source: upstream \`starling-client/starling\` at \`$(git rev-parse --short=10 HEAD)\`, built with its own pipeline \`packaging/android/build_apk.py\` (Rust, Android NDK, JDK 25; no Gradle, no prebuilt APK)."
-            echo "- Variant: preview, application id \`io.github.juanluci.starling.preview\`, installs beside the official app. It can never replace or update the official Starling release."
+            echo "- Variant: preview, application id \`rust.minecraft.preview\`, installs beside the official app. It can never replace or update the official Starling release."
             echo "- Signed with this repository's project-owned key (\`starling-build\`); the official upstream release key is not used, requested or stored here."
             echo "- Build time (compile + package + sign): ${{ steps.build.outputs.seconds }} s."
             echo

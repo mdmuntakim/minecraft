@@ -34,7 +34,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 
-APPLICATION_ID = "io.github.juanluci.starling"
+APPLICATION_ID = "rust.minecraft"
 LABEL = "Starling"
 # --dev and --preview: an app of its own, installed beside the release (which a build signed with
 # another key cannot install over), with its own folder (StarlingActivity.sharedFolder: StarlingDev,
@@ -64,10 +64,14 @@ PAGE_FLAGS = "-C link-arg=-Wl,-z,max-page-size=16384"
 # A BuildId in the library, so the native tombstones in diagnostic ZIPs name it and its frames can be matched to
 # the unstripped copy kept beside the APK (`lib<LIBRARY>-symbols.so`, docs/android-diagnostics.md).
 BUILD_ID_FLAGS = "-C link-arg=-Wl,--build-id=sha1"
+# The launcher icon: every density of `packaging/android/icon/`, rendered from its `ic_launcher.svg`
+# with `rsvg-convert` (the tool `cargo run -p xtask -- icons` uses for the other icons).
 ICONS = {
-    "mipmap-mdpi": "48x48",
-    "mipmap-xxhdpi": "128x128",
-    "mipmap-xxxhdpi": "256x256",
+    "mipmap-mdpi": 48,
+    "mipmap-hdpi": 72,
+    "mipmap-xhdpi": 96,
+    "mipmap-xxhdpi": 128,
+    "mipmap-xxxhdpi": 256,
 }
 # What horizon-prepare reads from its version folder on the phone (assets/prepare-kit.zip):
 # the pins, original sources and verified original exporter classes. The phone
@@ -222,13 +226,10 @@ def link_resources(aapt2, android_jar, out, assets, variant, abi=ABI):
     (out / "AndroidManifest.xml").write_text(manifest, encoding="utf-8")
     res = out / "res"
     shutil.rmtree(res, ignore_errors=True)
-    for folder, size in ICONS.items():
+    for folder in ICONS:
         target = res / folder
         target.mkdir(parents=True)
-        shutil.copyfile(
-            ROOT / "packaging" / "icons" / "hicolor" / size / "apps" / "horizon.png",
-            target / "ic_launcher.png",
-        )
+        shutil.copyfile(HERE / "icon" / folder / "ic_launcher.png", target / "ic_launcher.png")
     # The window themes (res/: the starting window's icon and background).
     shutil.copytree(HERE / "res", res, dirs_exist_ok=True)
     shortcuts = res / "xml" / "shortcuts.xml"
