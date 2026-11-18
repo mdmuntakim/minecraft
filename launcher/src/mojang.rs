@@ -63,13 +63,19 @@ fn mojang_url_at(
     runtimes_base: &str,
 ) -> String {
     let base = if url.starts_with("https://resources.download.minecraft.net") {
-        Some((objects_base, &url["https://resources.download.minecraft.net".len()..]))
+        Some((
+            objects_base,
+            &url["https://resources.download.minecraft.net".len()..],
+        ))
     } else if url.starts_with("https://piston-data.mojang.com") {
         Some((jar_base, &url["https://piston-data.mojang.com".len()..]))
     } else if url.starts_with("https://piston-meta.mojang.com") {
         Some((version_base, &url["https://piston-meta.mojang.com".len()..]))
     } else if url.starts_with("https://launchermeta.mojang.com") {
-        Some((runtimes_base, &url["https://launchermeta.mojang.com".len()..]))
+        Some((
+            runtimes_base,
+            &url["https://launchermeta.mojang.com".len()..],
+        ))
     } else {
         None
     };
@@ -81,7 +87,13 @@ fn mojang_url_at(
 
 /// One Mojang URL of this run, from the bases this run is configured with.
 pub(crate) fn mojang_url(url: &str) -> String {
-    mojang_url_at(url, &version_base(), &jar_base(), &objects_base(), &runtimes_base())
+    mojang_url_at(
+        url,
+        &version_base(),
+        &jar_base(),
+        &objects_base(),
+        &runtimes_base(),
+    )
 }
 
 /// Set to stop the download under way (the window's Cancel); cleared when a preparation starts.
