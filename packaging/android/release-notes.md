@@ -5,7 +5,7 @@ Horizon Android and Starling are now one app, in [starling-client/starling](http
 ## Install
 
 - **Already have Starling:** tap **Update** inside the game.
-- **New here, or coming from Horizon Android:** download the APK for your phone below and open it. Almost every phone takes **`starling-0.8.0-arm64-v8a.apk`**. Older 32-bit phones take `armeabi-v7a`, and x86 tablets and emulators take `x86_64` or `x86`.
+- **New here, or coming from Horizon Android:** download the APK for your phone below and open it. Almost every phone takes **`minecraft-0.8.0-arm64-v8a.apk`**. Older 32-bit phones take `armeabi-v7a`, and x86 tablets and emulators take `x86_64` or `x86`.
 
 ## What's new in 0.8.0
 

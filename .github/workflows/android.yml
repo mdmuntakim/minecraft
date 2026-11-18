@@ -131,13 +131,13 @@ jobs:
           done
           bash packaging/android/native_build.sh . "$RUNNER_TEMP/native" "${bundles[@]}"
           mkdir -p target/android
-          for apk in "$RUNNER_TEMP"/native/starling-*.apk; do
+          for apk in "$RUNNER_TEMP"/native/minecraft-*.apk; do
             cp "$apk" "target/android/$(basename "${apk%.apk}")-$(echo $MODS | tr ' ' '-').apk"
           done
       - uses: actions/upload-artifact@v4
         with:
           name: starling-apk-${{ matrix.abi }}
-          path: target/android/starling-*.apk
+          path: target/android/minecraft-*.apk
           if-no-files-found: error
           # A test build with the release key installs over a release: anyone may download a public
           # repository's artifacts, so it goes after a day.
@@ -176,7 +176,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release create "$GITHUB_REF_NAME" target/android/starling-*.apk \
+          gh release create "$GITHUB_REF_NAME" target/android/minecraft-*.apk \
             target/android/StarlingVisuals.zip \
             --title "Starling $GITHUB_REF_NAME" --notes-file packaging/android/release-notes.md \
             --latest

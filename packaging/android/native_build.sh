@@ -105,14 +105,14 @@ rsync -r --checksum --delete --exclude /target/ --exclude "/$manifest" \
 git -C "$source" show "HEAD:$manifest" > "$work/manifest"
 cmp -s "$work/manifest" "$build/$manifest" || cp "$work/manifest" "$build/$manifest"
 
-rm -f "$build"/target/android/starling-*.apk
+rm -f "$build"/target/android/minecraft-*.apk
 # NATIVE_LIBRARY_ONLY: the library is all the game downloads, and the APK takes time to make.
 (cd "$build" && python3 packaging/android/build_apk.py --abi "$abi" --profile "$profile" \
   ${NATIVE_LIBRARY_ONLY:+--library-only})
 
 library=$build/target/android/libhorizon_android.so
 cp "$library" "$out/libhorizon_android.so"
-[ -n "${NATIVE_LIBRARY_ONLY:-}" ] || cp "$build"/target/android/starling-*-"$abi".apk "$out/"
+[ -n "${NATIVE_LIBRARY_ONLY:-}" ] || cp "$build"/target/android/minecraft-*-"$abi".apk "$out/"
 python3 - "$build" "$work/mods" "$out" "$key" "$commit" "$profile" "$MIXINS_REV" "$abi" <<'EOF'
 import hashlib, json, pathlib, re, sys, tomllib
 build, mods, out, key, commit, profile, mixins, abi = sys.argv[1:]

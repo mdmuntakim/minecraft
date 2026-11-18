@@ -23,13 +23,13 @@ class ReleaseAssets(unittest.TestCase):
             (visuals / "horizon-shaders.toml").write_bytes(b"original pack metadata")
             apks = {}
             for abi in ("arm64-v8a", "x86", "x86_64"):
-                path = root / f"starling-0.2.3-{abi}.apk"
+                path = root / f"minecraft-0.2.3-{abi}.apk"
                 path.write_bytes(abi.encode())
                 apks[path] = abi.encode()
             with self.assertRaisesRegex(ValueError, "armeabi-v7a"):
                 release.prepare(root, "v0.2.3", visuals)
             self.assertFalse((root / "StarlingVisuals.zip").exists())
-            armv7 = root / "starling-0.2.3-armeabi-v7a.apk"
+            armv7 = root / "minecraft-0.2.3-armeabi-v7a.apk"
             armv7.write_bytes(b"armv7 APK")
             apks[armv7] = b"armv7 APK"
             release.prepare(root, "v0.2.3", visuals)

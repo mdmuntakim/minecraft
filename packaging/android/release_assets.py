@@ -8,7 +8,7 @@ from build_apk import ROOT, TARGETS, zip_folder
 
 def prepare(folder, version, visuals):
     version = version.removeprefix("v")
-    missing = [abi for abi in TARGETS if not (folder / f"starling-{version}-{abi}.apk").is_file()]
+    missing = [abi for abi in TARGETS if not (folder / f"minecraft-{version}-{abi}.apk").is_file()]
     if missing:
         raise ValueError("Missing release APKs: " + ", ".join(missing))
     zip_folder(visuals, folder / "StarlingVisuals.zip")

@@ -89,24 +89,24 @@ jobs:
 
       - name: Verify the signature and record the certificate
         run: |
-          apk="$(ls target/android/starling-*.apk)"
+          apk="$(ls target/android/minecraft-*.apk)"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" | tee certs.txt
           sha256sum "$apk" > apk.sha256
           sha256sum certs.txt apk.sha256 > SHA256SUMS
 
       - name: Source archive
         run: |
-          git archive --format=tar.gz --prefix=starling-source/ -o starling-source.tar.gz HEAD
-          sha256sum starling-source.tar.gz >> SHA256SUMS
+          git archive --format=tar.gz --prefix=minecraft-source/ -o minecraft-source.tar.gz HEAD
+          sha256sum minecraft-source.tar.gz >> SHA256SUMS
 
       - uses: actions/upload-artifact@v4
         with:
           name: minecraft-apk
           path: |
-            target/android/starling-*.apk
+            target/android/minecraft-*.apk
             certs.txt
             apk.sha256
-            starling-source.tar.gz
+            minecraft-source.tar.gz
             SHA256SUMS
           if-no-files-found: error
 
@@ -126,7 +126,7 @@ jobs:
             echo
             echo "- Source: upstream \`starling-client/starling\` at \`$(git rev-parse --short=10 HEAD)\`, built with its own pipeline \`packaging/android/build_apk.py\` (Rust, Android NDK, JDK 25; no Gradle, no prebuilt APK)."
             echo "- Application id \`rust.minecraft\`, app name \`Minecraft\`; one app, no variant suffix."
-            echo "- Signed with this repository's project-owned key (\`starling-build\`); the official upstream release key is not used, requested or stored here."
+            echo "- Signed with this repository's project-owned key; the official upstream release key is not used, requested or stored here."
             echo "- Build time (compile + package + sign): ${{ steps.build.outputs.seconds }} s."
             echo
             echo '### Certificate (apksigner verify --print-certs)'
@@ -147,12 +147,19 @@ jobs:
             echo
             echo '### Files'
             echo
-            echo '- `starling-0.8.0-arm64-v8a.apk` - the signed APK.'
-            echo '- `starling-source.tar.gz` - the exact source it was built from.'
+            for apk in target/android/minecraft-*.apk; do
+              echo "- \`$(basename "$apk")\` - the signed APK."
+            done
+            echo '- `minecraft-source.tar.gz` - the exact source it was built from.'
             echo '- `certs.txt`, `apk.sha256`, `SHA256SUMS`.'
+            echo
+            echo '### Checksums'
+            echo '```'
+            cat SHA256SUMS
+            echo '```'
           } > "$notes"
           gh release create "$tag" --title "Minecraft source build $tag" --notes-file "$notes" \
-            "$(ls target/android/starling-*.apk)" certs.txt apk.sha256 starling-source.tar.gz SHA256SUMS
+            "$(ls target/android/minecraft-*.apk)" certs.txt apk.sha256 minecraft-source.tar.gz SHA256SUMS
 
       - name: Job summary
         if: always()
@@ -161,5 +168,5 @@ jobs:
             echo "### build"
             echo
             echo "- Build time: ${{ steps.build.outputs.seconds }} s"
-            echo "- APK: $(ls -l target/android/starling-*.apk 2>/dev/null | awk '{print $5" bytes"}' || echo 'not produced')"
+            echo "- APK: $(ls -l target/android/minecraft-*.apk 2>/dev/null | awk '{print $5" bytes"}' || echo 'not produced')"
           } >> "$GITHUB_STEP_SUMMARY"
