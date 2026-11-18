@@ -2,4 +2,11 @@
 <resources>
     <!-- The game's window: black, without a title, over the whole screen. -->
     <style name="Starling.Game" parent="@android:style/Theme.Black.NoTitleBar.Fullscreen" />
+    <!-- The app's own dialogs: white, dark text and buttons, no device accent. -->
+    <style name="Minecraft.Dialog" parent="@android:style/Theme.Material.Light.Dialog.Alert">
+        <item name="android:windowBackground">#FFFFFFFF</item>
+        <item name="android:colorAccent">#FF1F1F1F</item>
+        <item name="android:colorPrimary">#FFFFFFFF</item>
+        <item name="android:colorPrimaryDark">#FFE0E0E0</item>
+    </style>
 </resources>

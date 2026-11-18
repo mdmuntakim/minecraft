@@ -122,7 +122,7 @@ public final class DiagnosticsActivity extends Activity {
         int ink = color(primary ? R.color.starling_on_accent : R.color.starling_ink);
         button.setTextColor(new ColorStateList(new int[][] {new int[] {-android.R.attr.state_enabled}, new int[] {}}, new int[] {(ink & 0xffffff) | 0x66000000, ink}));
         int fill = primary ? color(R.color.starling_accent) : ((color(R.color.starling_ink) & 0xffffff) | 0x14000000);
-        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x24ecedf3), shape(fill, 10, false), null));
+        button.setBackground(new RippleDrawable(ColorStateList.valueOf(0x24000000), shape(fill, 10, false), null));
         button.setOnClickListener(listener);
         actions.add(button);
         LinearLayout.LayoutParams layout = new LinearLayout.LayoutParams(0, -2, 1);

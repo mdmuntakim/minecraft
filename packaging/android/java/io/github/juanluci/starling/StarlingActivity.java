@@ -545,7 +545,7 @@ public class StarlingActivity extends NativeActivity {
         if (missing.isEmpty()) {
             return;
         }
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, R.style.Minecraft_Dialog)
                 .setTitle("A native mod needs a permission")
                 .setMessage(said + "\n\nAndroid asks you next. You can change it later in the "
                         + "app's settings.")
@@ -585,14 +585,14 @@ public class StarlingActivity extends NativeActivity {
         address.setHint("https://example.com");
         address.setText(current);
         float dp = getResources().getDisplayMetrics().density;
-        // The game's own look, not the system's white box; the keyboard leaves the warning in view.
+        // The game's own look, not the system's box: a white field with dark text.
         GradientDrawable box = new GradientDrawable();
-        box.setColor(0xFF1E2127);
+        box.setColor(0xFFFFFFFF);
         box.setCornerRadius(8 * dp);
-        box.setStroke(Math.round(dp), 0xFF8B7CF6);
+        box.setStroke(Math.round(dp), 0xFFBDBDBD);
         address.setBackground(box);
-        address.setTextColor(0xFFFFFFFF);
-        address.setHintTextColor(0xFF8A8F98);
+        address.setTextColor(0xFF1A1A1A);
+        address.setHintTextColor(0xFF757575);
         address.setPadding(Math.round(12 * dp), Math.round(10 * dp), Math.round(12 * dp),
                 Math.round(10 * dp));
         address.setImeOptions(EditorInfo.IME_FLAG_NO_EXTRACT_UI | EditorInfo.IME_ACTION_DONE);
@@ -613,7 +613,7 @@ public class StarlingActivity extends NativeActivity {
                 + "access, including your worlds and your signed-in account. Only use a server you "
                 + "run yourself or fully trust. Your native mods are the only files sent to it.");
 
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this, R.style.Minecraft_Dialog)
                 .setTitle("Build server")
                 .setMessage(message)
                 .setView(frame)

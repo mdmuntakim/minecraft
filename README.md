@@ -9,8 +9,8 @@ signed with **this repository's own key**.
 - The keystore is stored as repository secrets
   (`STARLING_KEYSTORE_BASE64`, `STARLING_KEY_ALIAS`,
   `STARLING_STORE_PASSWORD`, `STARLING_KEY_PASSWORD`) and is never committed.
-- One app, application id `rust.minecraft` and app name **Minecraft**. There is
-  no variant suffix (no `.dev`, no `.preview`): every build is the same package.
+- One app, application id `rust.minecraft` and app name **Minecraft**, with no
+  variant suffix: every build is the same package.
   It is signed with this project's key, not the official upstream release key,
   so it cannot install over or update the official Minecraft app.
 - The launcher icon is `packaging/android/icon/ic_launcher.svg`, a pixel-art

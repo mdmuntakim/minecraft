@@ -61,7 +61,7 @@ public final class LauncherActivity extends Activity {
             }, "starling-restart").start();
         } else if (file != null) {
             final AlertDialog copying =
-                    new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                    new AlertDialog.Builder(this, R.style.Minecraft_Dialog)
                             .setMessage("Handing the file to Starling...")
                             .setCancelable(false)
                             .show();

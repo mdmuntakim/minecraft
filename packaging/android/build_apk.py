@@ -222,11 +222,14 @@ def link_resources(aapt2, android_jar, out, assets, abi=ABI):
     # The window themes (res/: the starting window's icon and background).
     shutil.copytree(HERE / "res", res, dirs_exist_ok=True)
     shortcuts = res / "xml" / "shortcuts.xml"
-    shortcuts.write_text(shortcuts.read_text(encoding="utf-8").replace("@APPLICATION_ID@", application_id), encoding="utf-8")
-    # Match the setup dialogs without loading Rust or the game's renderer.
+    shortcuts.write_text(shortcuts.read_text(encoding="utf-8").replace("@APPLICATION_ID@", APPLICATION_ID), encoding="utf-8")
+    # Match the setup dialogs without loading Rust or the game's renderer. They are white with
+    # dark text, and their primary action is the dark ink so it stays legible on white: no violet.
     theme = (ROOT / "crates/horizon-theme/src/lib.rs").read_text(encoding="utf-8")
-    dark = theme.split("pub const DARK: Palette = Palette {", 1)[1].split("};", 1)[0]
-    colors = dict(re.findall(r"(\w+): 0x([0-9a-fA-F]{6})", dark))
+    light = theme.split("pub const LIGHT: Palette = Palette {", 1)[1].split("};", 1)[0]
+    colors = dict(re.findall(r"(\w+): 0x([0-9a-fA-F]{6})", light))
+    colors["accent"] = colors["ink"]
+    colors["on_accent"] = colors["surface"]
     entries = "\n".join(
         f'<color name="starling_{name}">#{colors[name]}</color>'
         for name in ("page", "rule", "ink", "ink_soft", "accent", "on_accent")
