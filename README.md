@@ -10,10 +10,14 @@ signed with **this repository's own key**.
   (`STARLING_KEYSTORE_BASE64`, `STARLING_KEY_ALIAS`,
   `STARLING_STORE_PASSWORD`, `STARLING_KEY_PASSWORD`) and is never committed.
 - The APK is built in the **preview** variant, application id
-  `io.github.juanluci.starling.preview` ("Starling Preview"), so it installs
-  **beside** the official app. It can never install over, update or replace the
-  official Starling release: the official upstream release key is not used,
-  requested or stored here.
+  `rust.minecraft.preview` ("Starling Preview"; `rust.minecraft` for the
+  release, `.dev` for `--dev`), so it installs **beside** the official app. It
+  can never install over, update or replace the official Starling release: the
+  official upstream release key is not used, requested or stored here.
+- The launcher icon is `packaging/android/icon/ic_launcher.svg`, an original
+  grass-block tile rendered per density. It is not Mojang's icon: this
+  repository carries no Mojang asset (`AGENTS.md`), and the app is not
+  affiliated with Mojang or Microsoft.
 - Certificate SHA-256 of the signing key is documented in every release's
   notes (`apksigner verify --print-certs` output).
 

@@ -8,7 +8,7 @@ name: android
 #
 # The release key is starling-client/starling's, in its `release` environment, which only the protected `starling`
 # branch and v* tags reach (a ruleset lets only admins push those tags); JuanLuci/starling held it before. Every other
-# build, and every build elsewhere, is Starling Preview (io.github.juanluci.starling.preview, build_apk.py --preview),
+# build, and every build elsewhere, is Starling Preview (rust.minecraft.preview, build_apk.py --preview),
 # installed beside the release and signed with the repository's own test key in STARLING_DEBUG_KEYSTORE_BASE64 (alias
 # horizon-debug, password android); a tag elsewhere publishes nothing.
 on:
