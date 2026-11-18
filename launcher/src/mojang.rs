@@ -20,6 +20,82 @@ const OBJECTS: &str = "https://resources.download.minecraft.net";
 /// The index of Mojang's Java runtimes, the one the official launcher reads.
 const JAVA_RUNTIMES: &str = "https://launchermeta.mojang.com/v1/products/java-runtime/2ec0cc96c44e5a76b9c8b7c39df7210883d12871/all.json";
 
+/// The base this run downloads the game's files from: the Mojang host the file is on, or the
+/// owner's `mdmuntakim/minecraft-assets` repository when `HORIZON_MINECRAFT_DOWNLOAD_BASE` holds
+/// the base to download from instead. The files keep the paths they have on Mojang's hosts, so
+/// one base serves the version JSONs, the jars and the asset objects.
+pub(crate) fn download_base(host: &str) -> String {
+    std::env::var("HORIZON_MINECRAFT_DOWNLOAD_BASE")
+        .ok()
+        .filter(|b| !b.is_empty())
+        .unwrap_or_else(|| host.to_owned())
+}
+
+/// The version files' base: Mojang's version list, or the owner's `minecraft-assets`.
+pub(crate) fn version_base() -> String {
+    download_base("https://piston-meta.mojang.com")
+}
+
+/// The game jars' base: Mojang's version data, or the owner's `minecraft-assets`.
+pub(crate) fn jar_base() -> String {
+    download_base("https://piston-data.mojang.com")
+}
+
+/// The asset objects' base: Mojang's assets, or the owner's `minecraft-assets`.
+pub(crate) fn objects_base() -> String {
+    download_base("https://resources.download.minecraft.net")
+}
+
+/// The Java runtimes' base: Mojang's runtime index, or the owner's `minecraft-assets`.
+pub(crate) fn runtimes_base() -> String {
+    download_base("https://launchermeta.mojang.com")
+}
+
+/// One Mojang URL of this run, from the base this run downloads from: the host the file is on
+/// picks the base, the rest of the path comes along (`/v1/packages/<sha1>/<version>.json`,
+/// `/assets/<xx>/<hash>`, `/client.jar`, ...). A URL on another host is the player's own and is
+/// taken as it is.
+fn mojang_url_at(
+    url: &str,
+    version_base: &str,
+    jar_base: &str,
+    objects_base: &str,
+    runtimes_base: &str,
+) -> String {
+    let base = if url.starts_with("https://resources.download.minecraft.net") {
+        Some((
+            objects_base,
+            &url["https://resources.download.minecraft.net".len()..],
+        ))
+    } else if url.starts_with("https://piston-data.mojang.com") {
+        Some((jar_base, &url["https://piston-data.mojang.com".len()..]))
+    } else if url.starts_with("https://piston-meta.mojang.com") {
+        Some((version_base, &url["https://piston-meta.mojang.com".len()..]))
+    } else if url.starts_with("https://launchermeta.mojang.com") {
+        Some((
+            runtimes_base,
+            &url["https://launchermeta.mojang.com".len()..],
+        ))
+    } else {
+        None
+    };
+    match base {
+        Some((base, rest)) => format!("{}{rest}", base.trim_end_matches('/')),
+        None => url.to_owned(),
+    }
+}
+
+/// One Mojang URL of this run, from the bases this run is configured with.
+pub(crate) fn mojang_url(url: &str) -> String {
+    mojang_url_at(
+        url,
+        &version_base(),
+        &jar_base(),
+        &objects_base(),
+        &runtimes_base(),
+    )
+}
+
 /// Set to stop the download under way (the window's Cancel); cleared when a preparation starts.
 pub static CANCEL: AtomicBool = AtomicBool::new(false);
 /// The download under way: files done, of how many (0 when none runs).
@@ -67,7 +143,7 @@ pub fn download(
         pinned => pinned.to_string(),
     };
     let mut game = vec![File {
-        url: text(client, "url")?,
+        url: mojang_url(&text(client, "url")?),
         sha1: client_sha1,
         size: client["size"].as_u64(),
         path: versions.join(format!("{v}.jar")),
@@ -85,7 +161,7 @@ pub fn download(
             .filter(|a| !a.is_null())
         {
             game.push(File {
-                url: text(artifact, "url")?,
+                url: mojang_url(&text(artifact, "url")?),
                 sha1: text(artifact, "sha1")?,
                 size: artifact["size"].as_u64(),
                 path: dir
@@ -100,7 +176,7 @@ pub fn download(
     let logging = &manifest["logging"]["client"]["file"];
     if !logging.is_null() {
         game.push(File {
-            url: text(logging, "url")?,
+            url: mojang_url(&text(logging, "url")?),
             sha1: text(logging, "sha1")?,
             size: logging["size"].as_u64(),
             path: dir
@@ -114,7 +190,7 @@ pub fn download(
     fetch_all(&game, jobs, fetch, cancel, log)?;
     let index = &manifest["assetIndex"];
     let index = File {
-        url: text(index, "url")?,
+        url: mojang_url(&text(index, "url")?),
         sha1: text(index, "sha1")?,
         size: index["size"].as_u64(),
         path: dir
@@ -175,7 +251,7 @@ pub fn java_runtime(
     log: &dyn Fn(String),
 ) -> Result<PathBuf, String> {
     let platform = java_platform().ok_or("Mojang has no Java for this system")?;
-    let index: Value = serde_json::from_slice(&fetch(JAVA_RUNTIMES)?)
+    let index: Value = serde_json::from_slice(&fetch(&mojang_url(JAVA_RUNTIMES))?)
         .map_err(|e| format!("Mojang's Java index: {e}"))?;
     let entry = &index[platform][component][0];
     if entry.is_null() {
@@ -184,7 +260,7 @@ pub fn java_runtime(
     let manifest = &entry["manifest"];
     let manifest: Value = serde_json::from_slice(&fetch_checked(
         fetch,
-        &text(manifest, "url")?,
+        &mojang_url(&text(manifest, "url")?),
         &text(manifest, "sha1")?,
     )?)
     .map_err(|e| format!("Mojang's {component} manifest: {e}"))?;
@@ -204,7 +280,7 @@ pub fn java_runtime(
                     executables.push(path.clone());
                 }
                 downloads.push(File {
-                    url: text(raw, "url")?,
+                    url: mojang_url(&text(raw, "url")?),
                     sha1: text(raw, "sha1")?,
                     size: raw["size"].as_u64(),
                     path,
@@ -337,7 +413,7 @@ fn objects(index: &Value, dir: &Path) -> Result<Vec<File>, String> {
             }
             let path = format!("{}/{hash}", &hash[..2]);
             Ok(File {
-                url: format!("{OBJECTS}/{path}"),
+                url: mojang_url(&format!("{OBJECTS}/{path}")),
                 sha1: hash.to_string(),
                 size: sizes.get(hash).copied(),
                 path: dir.join("assets/objects").join(path),

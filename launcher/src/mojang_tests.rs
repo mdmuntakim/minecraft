@@ -107,6 +107,52 @@ fn scratch(name: &str) -> PathBuf {
 }
 
 #[test]
+fn mojang_urls_download_from_the_configured_base() {
+    let base = "https://raw.githubusercontent.com/mdmuntakim/minecraft-assets/main";
+    assert_eq!(
+        mojang_url_at(
+            "https://piston-meta.mojang.com/v1/packages/a/b.json",
+            base,
+            base,
+            base,
+            base
+        ),
+        "https://raw.githubusercontent.com/mdmuntakim/minecraft-assets/main/v1/packages/a/b.json"
+    );
+    assert_eq!(
+        mojang_url_at(
+            "https://piston-data.mojang.com/client.jar",
+            base,
+            base,
+            base,
+            base
+        ),
+        "https://raw.githubusercontent.com/mdmuntakim/minecraft-assets/main/client.jar"
+    );
+    assert_eq!(
+        mojang_url_at(
+            "https://resources.download.minecraft.net/ab/abcd",
+            base,
+            base,
+            base,
+            base
+        ),
+        "https://raw.githubusercontent.com/mdmuntakim/minecraft-assets/main/ab/abcd"
+    );
+    // Mojang's own hosts, when no base is configured: the files come from Mojang.
+    assert_eq!(
+        mojang_url_at(
+            "https://piston-meta.mojang.com/v1/packages/a/b.json",
+            "https://piston-meta.mojang.com",
+            "https://piston-data.mojang.com",
+            "https://resources.download.minecraft.net",
+            "https://launchermeta.mojang.com"
+        ),
+        "https://piston-meta.mojang.com/v1/packages/a/b.json"
+    );
+}
+
+#[test]
 fn an_owner_gets_the_official_layout_with_this_systems_libraries() {
     let (pins, files) = mojang();
     let server = Server {

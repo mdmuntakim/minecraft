@@ -114,7 +114,9 @@ fn load_with(
     cache: &Path,
     fetch: &dyn Fn(&str) -> Result<String, String>,
 ) -> Result<Versions, String> {
-    match fetch(MANIFEST).and_then(|text| Versions::parse(&text).map(|v| (v, text))) {
+    match fetch(&crate::mojang::mojang_url(MANIFEST))
+        .and_then(|text| Versions::parse(&text).map(|v| (v, text)))
+    {
         Ok((versions, text)) => {
             let _ =
                 fs::create_dir_all(cache.parent().unwrap()).and_then(|_| fs::write(cache, text));
