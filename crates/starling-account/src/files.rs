@@ -84,12 +84,15 @@ pub fn objects_base() -> String {
 /// `/assets/<xx>/<hash>`, `/client.jar`, ...). A URL on another host is the player's own and is
 /// taken as it is.
 pub fn mojang_url(url: &str) -> String {
+    let version = version_base();
+    let jar = jar_base();
+    let objects = objects_base();
     let (base, rest) = if url.starts_with("https://piston-meta.mojang.com") {
-        (version_base().as_str(), &url["https://piston-meta.mojang.com".len()..])
+        (version.as_str(), &url["https://piston-meta.mojang.com".len()..])
     } else if url.starts_with("https://piston-data.mojang.com") {
-        (jar_base().as_str(), &url["https://piston-data.mojang.com".len()..])
+        (jar.as_str(), &url["https://piston-data.mojang.com".len()..])
     } else if url.starts_with("https://resources.download.minecraft.net") {
-        (objects_base().as_str(), &url["https://resources.download.minecraft.net".len()..])
+        (objects.as_str(), &url["https://resources.download.minecraft.net".len()..])
     } else {
         return url.to_owned();
     };
