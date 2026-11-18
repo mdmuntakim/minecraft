@@ -45,12 +45,12 @@ public final class GameFolderProvider extends DocumentsProvider {
         return GameFolder.choose(context.getFilesDir(), StarlingActivity.sharedFolder(context));
     }
 
-    /** The manifest's authority, which follows the package: Starling and its Preview side by side. */
+    /** The manifest's authority, which follows the package. */
     private String authority() {
         return getContext().getPackageName() + ".documents";
     }
 
-    /** The app's name, as the phone lists it: Starling, Starling Preview... */
+    /** The app's name, as the phone lists it. */
     private String title() {
         Context context = getContext();
         return context.getApplicationInfo().loadLabel(context.getPackageManager()).toString();

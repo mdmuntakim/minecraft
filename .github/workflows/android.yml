@@ -8,9 +8,9 @@ name: android
 #
 # The release key is starling-client/starling's, in its `release` environment, which only the protected `starling`
 # branch and v* tags reach (a ruleset lets only admins push those tags); JuanLuci/starling held it before. Every other
-# build, and every build elsewhere, is Starling Preview (rust.minecraft.preview, build_apk.py --preview),
-# installed beside the release and signed with the repository's own test key in STARLING_DEBUG_KEYSTORE_BASE64 (alias
-# horizon-debug, password android); a tag elsewhere publishes nothing.
+# build, and every build elsewhere, is signed with the repository's own test key in
+# STARLING_DEBUG_KEYSTORE_BASE64 (alias horizon-debug, password android) as the same `rust.minecraft` app; a tag
+# elsewhere publishes nothing.
 on:
   push:
     branches: [android, starling, integration]
@@ -35,7 +35,6 @@ permissions:
   contents: read
 env:
   RELEASE_BUILD: ${{ (github.repository == 'starling-client/starling' && (startsWith(github.ref, 'refs/tags/v') || inputs.release_key)) && 'true' || 'false' }}
-  PREVIEW: ${{ !(github.repository == 'starling-client/starling' && (startsWith(github.ref, 'refs/tags/v') || inputs.release_key)) && 'true' || 'false' }}
 concurrency:
   group: android-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -117,12 +116,11 @@ jobs:
           HORIZON_ANDROID_KEY_PASSWORD: ${{ secrets.STARLING_KEY_PASSWORD }}
           MODS: ${{ inputs.native_mods }}
           PROFILE: ${{ env.RELEASE_BUILD == 'true' && 'fast' || 'quick' }}
-          VARIANT: ${{ env.PREVIEW == 'true' && '--preview' || '' }}
         # Releases with the fast profile (fewer codegen units: a little quicker in game). With native mods, the APK
         # native_build.sh makes, named after them.
         run: |
           if [ -z "$MODS" ]; then
-            python packaging/android/build_apk.py --abi "$ABI" --profile "$PROFILE" $VARIANT ${{ inputs.keep_symbols && '--keep-symbols' || '' }}
+            python packaging/android/build_apk.py --abi "$ABI" --profile "$PROFILE" ${{ inputs.keep_symbols && '--keep-symbols' || '' }}
             exit 0
           fi
           bundles=()

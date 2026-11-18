@@ -14,7 +14,7 @@
 # NATIVE_CACHE (default ~/.cache/starling-native) keeps horizon-mixins and the build folder with
 # its target between builds: a file a build leaves as it was keeps its time, so Cargo recompiles
 # only the crates the mods change. PROFILE defaults to fast, a release's.
-# ABI selects the Android architecture (default arm64-v8a); VARIANT can be --preview or --dev.
+# ABI selects the Android architecture (default arm64-v8a).
 set -euo pipefail
 
 MIXINS_GIT=https://github.com/horizon-rust/horizon-mixins
@@ -33,11 +33,6 @@ abi=${ABI:-arm64-v8a}
 case "$abi" in
   arm64-v8a|armeabi-v7a|x86|x86_64) ;;
   *) fail "unsupported Android ABI: $abi" ;;
-esac
-variant=${VARIANT:-}
-case "$variant" in
-  ''|--preview|--dev) ;;
-  *) fail "unsupported APK variant: $variant" ;;
 esac
 mkdir -p "$cache"
 
@@ -112,7 +107,7 @@ cmp -s "$work/manifest" "$build/$manifest" || cp "$work/manifest" "$build/$manif
 
 rm -f "$build"/target/android/starling-*.apk
 # NATIVE_LIBRARY_ONLY: the library is all the game downloads, and the APK takes time to make.
-(cd "$build" && python3 packaging/android/build_apk.py --abi "$abi" --profile "$profile" $variant \
+(cd "$build" && python3 packaging/android/build_apk.py --abi "$abi" --profile "$profile" \
   ${NATIVE_LIBRARY_ONLY:+--library-only})
 
 library=$build/target/android/libhorizon_android.so

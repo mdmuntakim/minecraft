@@ -62,8 +62,8 @@ pub mod color {
     pub const TEXT: u32 = hex(P.ink, 255);
     /// Values and secondary text (`ink_soft`).
     pub const MUTED: u32 = hex(P.ink_soft, 255);
-    pub const ACCENT: u32 = hex(P.accent, 255);
-    pub const ON_ACCENT: u32 = hex(P.on_accent, 255);
+    pub const ACCENT: u32 = hex(0xFFFFFF, 255);
+    pub const ON_ACCENT: u32 = hex(0x101010, 255);
     pub const DANGER: u32 = hex(P.danger, 255);
     pub const SUCCESS: u32 = hex(P.success, 255);
     pub const WHITE: u32 = hex(0xffffff, 255);

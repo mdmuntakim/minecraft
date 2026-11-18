@@ -32,7 +32,7 @@ class GameFolderManifest(unittest.TestCase):
         self.assertEqual(action.get(NS + "name"), "android.content.action.DOCUMENTS_PROVIDER")
 
     def test_authority_follows_the_package(self):
-        # Starling and Starling Preview can't install together with one authority.
+        # The authority is derived from the application id.
         self.assertEqual(provider().get(NS + "authorities"), "@APPLICATION_ID@.documents")
 
     def test_the_game_ending_does_not_end_it(self):

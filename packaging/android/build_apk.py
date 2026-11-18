@@ -11,8 +11,6 @@ horizon-prepare makes from the player's own copy are made on the phone, or copie
     python3 packaging/android/build_apk.py --no-build      # package the library built last
     python3 packaging/android/build_apk.py --install       # and adb install it
     python3 packaging/android/build_apk.py --zip           # and a zip of it to send
-    python3 packaging/android/build_apk.py --dev           # Starling Dev, beside the release
-    python3 packaging/android/build_apk.py --preview       # Starling Preview, the organisation's CI build
 
 Needs the Android SDK (ANDROID_HOME, else the default folder) with the build-tools, platform and
 NDK pinned below, the aarch64-linux-android Rust target, cargo-ndk and a JDK (javac, keytool,
@@ -35,13 +33,7 @@ ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 
 APPLICATION_ID = "rust.minecraft"
-LABEL = "Starling"
-# --dev and --preview: an app of its own, installed beside the release (which a build signed with
-# another key cannot install over), with its own folder (StarlingActivity.sharedFolder: StarlingDev,
-# StarlingPreview) and its own sign-in and game files. Preview is what starling-client/starling's
-# CI builds, signed with that repository's test key: the release key stays out of it.
-DEV_SUFFIX = ".dev"
-VARIANTS = {"dev": (DEV_SUFFIX, " Dev"), "preview": (".preview", " Preview")}
+LABEL = "Minecraft"
 VERSION_NAME = "0.8.0"
 VERSION_CODE = 13
 MIN_SDK = 26  # AAudio (cpal)
@@ -211,14 +203,11 @@ def compile_java(build_tools, android_jar, out):
     return dex / "classes.dex"
 
 
-def link_resources(aapt2, android_jar, out, assets, variant, abi=ABI):
+def link_resources(aapt2, android_jar, out, assets, abi=ABI):
     """The manifest, the launcher icon, the themes and `assets`, compiled and linked into
-    `out/base.apk`; `variant` is None (the release's app) or a key of VARIANTS."""
+    `out/base.apk`."""
     manifest = (HERE / "AndroidManifest.xml").read_text(encoding="utf-8")
-    suffix, label_suffix = VARIANTS[variant] if variant else ("", "")
-    application_id = APPLICATION_ID + suffix
-    label = LABEL + label_suffix
-    manifest = manifest.replace("@APPLICATION_ID@", application_id).replace("@LABEL@", label)
+    manifest = manifest.replace("@APPLICATION_ID@", APPLICATION_ID).replace("@LABEL@", LABEL)
     if abi != ABI:
         # Additional architectures may expose GLES only. Validate actual GPU limits.
         manifest = manifest.replace('android:version="0x400003" android:required="true"',
@@ -314,14 +303,6 @@ def main():
     parser.add_argument(
         "--library-only", action="store_true", help="stop at the stripped library: no APK"
     )
-    parser.add_argument(
-        "--dev", action="store_true",
-        help=f"Starling Dev ({APPLICATION_ID}{DEV_SUFFIX}), installed beside the release",
-    )
-    parser.add_argument(
-        "--preview", action="store_true",
-        help=f"Starling Preview ({APPLICATION_ID}{VARIANTS['preview'][0]}), the organisation's CI build",
-    )
     parser.add_argument("--abi", choices=TARGETS, default=ABI, help="Android ABI (default: arm64-v8a)")
     args = parser.parse_args()
     triple, _, _ = TARGETS[args.abi]
@@ -355,15 +336,14 @@ def main():
         # builds (--library-only) don't need one.
         shutil.copyfile(built, out / f"lib{LIBRARY}-symbols.so")
 
-    variant = "dev" if args.dev else "preview" if args.preview else None
-    link_resources(tool(build_tools, "aapt2"), android_jar, out, assets(out), variant, args.abi)
+    link_resources(tool(build_tools, "aapt2"), android_jar, out, assets(out), args.abi)
     dex = compile_java(build_tools, android_jar, out)
     libraries = build_launchers(ndk, out, args.abi)
     libraries[library.name] = library
     add_code(out / "base.apk", libraries, dex, out / "unsigned.apk", args.abi)
     aligned = out / "aligned.apk"
     run(tool(build_tools, "zipalign"), "-P", "16", "-f", "4", out / "unsigned.apk", aligned)
-    apk = out / f"starling{'-' + variant if variant else ''}-{VERSION_NAME}-{args.abi}.apk"
+    apk = out / f"starling-{VERSION_NAME}-{args.abi}.apk"
     sign(build_tools, aligned, apk, out)
     print(apk)
     if args.zip:

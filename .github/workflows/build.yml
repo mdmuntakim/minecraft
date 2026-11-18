@@ -1,17 +1,13 @@
 name: android-build
-# One dispatch, two parallel jobs:
-#   starling -- builds the APK from this repository's source (upstream
-#               starling-client/starling), signs it with the project-owned
-#               keystore stored in this repository's secrets.
-#   twofold  -- checks out mdmuntakim/twofold, builds and tests it, and (when
-#               asked to publish) releases the signed APK.
-# Both jobs start at the same time, neither waits for the other.
+# Builds the APK from this repository's source (upstream
+# starling-client/starling), signs it with the project-owned keystore stored in
+# this repository's secrets, and (when asked to publish) releases it.
 
 on:
   workflow_dispatch:
     inputs:
       publish:
-        description: "Publish releases after the builds"
+        description: "Publish the release after the build"
         required: false
         default: "false"
         type: boolean
@@ -20,8 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  starling:
-    name: starling (source build, own key)
+  build:
+    name: APK (source build, own key)
     runs-on: ubuntu-latest
     timeout-minutes: 350
     permissions:
@@ -86,14 +82,14 @@ jobs:
         id: build
         run: |
           start="$(date -u +%s)"
-          python3 packaging/android/build_apk.py --preview --profile release
+          python3 packaging/android/build_apk.py --profile release
           end="$(date -u +%s)"
           echo "seconds=$((end - start))" >> "$GITHUB_OUTPUT"
           ls -lh target/android/*.apk
 
       - name: Verify the signature and record the certificate
         run: |
-          apk="$(ls target/android/starling-preview-*.apk)"
+          apk="$(ls target/android/starling-*.apk)"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" | tee certs.txt
           sha256sum "$apk" > apk.sha256
           sha256sum certs.txt apk.sha256 > SHA256SUMS
@@ -105,9 +101,9 @@ jobs:
 
       - uses: actions/upload-artifact@v4
         with:
-          name: starling-apk
+          name: minecraft-apk
           path: |
-            target/android/starling-preview-*.apk
+            target/android/starling-*.apk
             certs.txt
             apk.sha256
             starling-source.tar.gz
@@ -119,17 +115,17 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          tag="starling-$(date -u +%Y%m%d)"
+          tag="minecraft-$(date -u +%Y%m%d)"
           if gh release view "$tag" >/dev/null 2>&1; then
             echo "release $tag already exists, not publishing again"
             exit 0
           fi
           notes="build.md"
           {
-            echo "## Starling APK built from source"
+            echo "## Minecraft APK built from source"
             echo
             echo "- Source: upstream \`starling-client/starling\` at \`$(git rev-parse --short=10 HEAD)\`, built with its own pipeline \`packaging/android/build_apk.py\` (Rust, Android NDK, JDK 25; no Gradle, no prebuilt APK)."
-            echo "- Variant: preview, application id \`rust.minecraft.preview\`, installs beside the official app. It can never replace or update the official Starling release."
+            echo "- Application id \`rust.minecraft\`, app name \`Minecraft\`; one app, no variant suffix."
             echo "- Signed with this repository's project-owned key (\`starling-build\`); the official upstream release key is not used, requested or stored here."
             echo "- Build time (compile + package + sign): ${{ steps.build.outputs.seconds }} s."
             echo
@@ -151,85 +147,19 @@ jobs:
             echo
             echo '### Files'
             echo
-            echo '- `starling-preview-0.8.0-arm64-v8a.apk` - the signed APK.'
+            echo '- `starling-0.8.0-arm64-v8a.apk` - the signed APK.'
             echo '- `starling-source.tar.gz` - the exact source it was built from.'
             echo '- `certs.txt`, `apk.sha256`, `SHA256SUMS`.'
           } > "$notes"
-          gh release create "$tag" --title "Starling source build $tag" --notes-file "$notes" \
-            "$(ls target/android/starling-preview-*.apk)" certs.txt apk.sha256 starling-source.tar.gz SHA256SUMS
+          gh release create "$tag" --title "Minecraft source build $tag" --notes-file "$notes" \
+            "$(ls target/android/starling-*.apk)" certs.txt apk.sha256 starling-source.tar.gz SHA256SUMS
 
       - name: Job summary
         if: always()
         run: |
           {
-            echo "### starling"
+            echo "### build"
             echo
             echo "- Build time: ${{ steps.build.outputs.seconds }} s"
-            echo "- APK: $(ls -l target/android/starling-preview-*.apk 2>/dev/null | awk '{print $5" bytes"}' || echo 'not produced')"
-          } >> "$GITHUB_STEP_SUMMARY"
-
-  twofold:
-    name: twofold (build, test, release)
-    runs-on: ubuntu-latest
-    timeout-minutes: 350
-    defaults:
-      run:
-        shell: bash
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          repository: mdmuntakim/twofold
-          ref: main
-          token: ${{ secrets.OWNER_TOKEN }}
-
-      - name: JDK 21
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - name: Build, unit tests and acceptance matrix (timed)
-        id: build
-        run: |
-          start="$(date -u +%s)"
-          bash scripts/acceptance.sh
-          end="$(date -u +%s)"
-          echo "seconds=$((end - start))" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/upload-artifact@v4
-        with:
-          name: twofold-apk
-          path: |
-            dist/twofold-*.apk
-            dist/twofold-*.apk.sha256
-            dist/acceptance.txt
-            dist/screenshots/*.png
-          if-no-files-found: error
-
-      - name: Publish release
-        if: ${{ inputs.publish }}
-        env:
-          GH_TOKEN: ${{ secrets.OWNER_TOKEN }}
-        run: |
-          version="$(sed -n "s/.*versionName '\([^']*\)'.*/\1/p" app/build.gradle | head -1)"
-          tag="v$version"
-          git archive --format=tar.gz --prefix="twofold-$tag/" -o "twofold-$tag-source.tar.gz" HEAD
-          sha256sum "twofold-$tag-source.tar.gz" >> dist/twofold-*.apk.sha256 || true
-          if gh release view "$tag" --repo mdmuntakim/twofold >/dev/null 2>&1; then
-            echo "release $tag already exists, not publishing again"
-            exit 0
-          fi
-          gh release create "$tag" --repo mdmuntakim/twofold \
-            --title "Twofold $version" --notes-file docs/RELEASE_NOTES.md \
-            "dist/twofold-$version-arm64-v8a.apk" "dist/twofold-$version-arm64-v8a.apk.sha256" \
-            dist/acceptance.txt dist/screenshots/*.png "twofold-$tag-source.tar.gz"
-
-      - name: Job summary
-        if: always()
-        run: |
-          {
-            echo "### twofold"
-            echo
-            echo "- Build + tests: ${{ steps.build.outputs.seconds }} s"
-            echo "- APK: $(ls -l dist/twofold-*.apk 2>/dev/null | awk '{print $5" bytes"}' || echo 'not produced')"
+            echo "- APK: $(ls -l target/android/starling-*.apk 2>/dev/null | awk '{print $5" bytes"}' || echo 'not produced')"
           } >> "$GITHUB_STEP_SUMMARY"

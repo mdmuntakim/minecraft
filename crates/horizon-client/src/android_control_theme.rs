@@ -48,8 +48,8 @@ pub mod color {
     pub const TEXT: u32 = hex(P.ink, 255);
     /// Values and secondary text (`ink_soft`).
     pub const MUTED: u32 = hex(P.ink_soft, 255);
-    pub const ACCENT: u32 = hex(P.accent, 255);
-    pub const ON_ACCENT: u32 = hex(P.on_accent, 255);
+    pub const ACCENT: u32 = hex(0xFFFFFF, 255);
+    pub const ON_ACCENT: u32 = hex(0x101010, 255);
     pub fn with_alpha(c: u32, a: f32) -> u32 {
         let base = (c >> 24) as f32;
         (c & 0x00ff_ffff) | ((base * a.clamp(0.0, 1.0)).round() as u32) << 24
@@ -2169,7 +2169,7 @@ impl ThemePreset {
                 0x18111A, 0x261A29, 0xF472B6, 0x251429, 0x341C3A, 0x110C13, false,
             ),
             Self::DaylightFrost => (
-                0xF3F1FA, 0xFFFFFF, 0x6750A4, 0xEDE8FA, 0xF5F2FC, 0xE4DDF8, true,
+                0xFFFFFF, 0xFFFFFF, 0xEDEDED, 0xFFFFFF, 0xF7F7F7, 0xE9E9E9, true,
             ),
         }
     }
@@ -2295,17 +2295,19 @@ pub struct LauncherThemeConfig {
 
 impl Default for LauncherThemeConfig {
     fn default() -> Self {
+        // White, not Horizon's violet: the Android app's dialogs and editor
+        // panels are white with dark text, as the issue asked for.
         Self {
-            preset: ThemePreset::ObsidianViolet,
-            appearance: ThemeAppearance::Dark,
+            preset: ThemePreset::DaylightFrost,
+            appearance: ThemeAppearance::Light,
             background_mode: BackgroundMode::Solid,
-            custom_bg_hex: "#13111C".into(),
-            custom_surface_hex: "#1D192B".into(),
-            custom_accent_hex: "#9A7BFF".into(),
+            custom_bg_hex: "#FFFFFF".into(),
+            custom_surface_hex: "#FFFFFF".into(),
+            custom_accent_hex: "#EDEDED".into(),
             gradient_direction: GradientDirection::DiagonalDown,
-            gradient_start_hex: "#1A1333".into(),
-            gradient_mid_hex: "#131A2E".into(),
-            gradient_end_hex: "#0D0B14".into(),
+            gradient_start_hex: "#FFFFFF".into(),
+            gradient_mid_hex: "#F7F7F7".into(),
+            gradient_end_hex: "#E9E9E9".into(),
             gradient_mid_pos: 0.50,
             use_three_stops: true,
         }
@@ -2477,8 +2479,9 @@ impl LauncherThemeConfig {
         }
 
         let mut accent_rgb = parse_hex_color(&self.custom_accent_hex).unwrap_or(def_acc);
-        // Protect accent legibility against background
-        if is_light && rgb_luminance(accent_rgb) > 0.72 {
+        // Protect accent legibility against background. The white preset keeps
+        // its white accent: its `on_accent` text is dark, so it stays readable.
+        if is_light && rgb_luminance(accent_rgb) > 0.72 && self.preset != ThemePreset::DaylightFrost {
             accent_rgb = blend_rgb(accent_rgb, 0x1E1638, 0.45);
         } else if !is_light && rgb_luminance(accent_rgb) < 0.15 {
             accent_rgb = blend_rgb(accent_rgb, 0xFFFFFF, 0.45);
@@ -2692,6 +2695,17 @@ pub mod motion {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_default_theme_is_white_not_violet() {
+        let theme = ResolvedTheme::default();
+        assert!(theme.is_light);
+        assert_eq!(theme.bg_solid, color::hex(0xFFFFFF, 255));
+        assert_eq!(theme.surface, color::hex(0xFFFFFF, 245));
+        assert_eq!(theme.accent, color::hex(0xEDEDED, 255));
+        assert_eq!(theme.on_accent, color::hex(0x140E26, 255));
+        assert_ne!(theme.text_primary, theme.bg_solid);
+    }
 
     #[test]
     fn atlas_reload_regenerates_text_and_corners_at_the_same_address() {

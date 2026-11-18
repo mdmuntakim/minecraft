@@ -21,15 +21,25 @@ class LauncherIcon(unittest.TestCase):
                 self.assertEqual(struct.unpack(">II", png[16:24]), (size, size))
 
     def test_a_square_master_can_be_rendered_again(self):
-        # The densities are generated from this file with rsvg-convert (icon/README.md).
+        # The densities are generated from this file with render.py (icon/README.md).
         master = (ICON_DIR / "ic_launcher.svg").read_text(encoding="utf-8")
         self.assertIn('viewBox="0 0 16 16"', master)
 
+    def test_the_pngs_are_what_the_renderer_draws(self):
+        spec = importlib.util.spec_from_file_location("starling_icon_render", ICON_DIR / "render.py")
+        render = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(render)
+        for folder, size in apk.ICONS.items():
+            with self.subTest(folder=folder):
+                self.assertEqual((ICON_DIR / folder / "ic_launcher.png").read_bytes(), render.png(size))
+
     def test_the_application_id_is_the_one_the_issue_asked_for(self):
         self.assertEqual(apk.APPLICATION_ID, "rust.minecraft")
-        # Each variant is its own app, so it installs beside the release.
-        self.assertEqual(apk.APPLICATION_ID + apk.VARIANTS["preview"][0], "rust.minecraft.preview")
-        self.assertEqual(apk.APPLICATION_ID + apk.VARIANTS["dev"][0], "rust.minecraft.dev")
+        self.assertEqual(apk.LABEL, "Minecraft")
+        # One app: no variant suffixes, and the word "preview" is gone.
+        self.assertFalse(hasattr(apk, "VARIANTS"))
+        self.assertIn("rust.minecraft", str(apk.APPLICATION_ID))
+        self.assertNotIn("preview", apk.APPLICATION_ID.lower())
 
 
 if __name__ == "__main__":
