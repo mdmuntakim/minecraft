@@ -260,7 +260,7 @@ pub fn java_runtime(
     let manifest = &entry["manifest"];
     let manifest: Value = serde_json::from_slice(&fetch_checked(
         fetch,
-        &text(manifest, "url")?,
+        &mojang_url(&text(manifest, "url")?),
         &text(manifest, "sha1")?,
     )?)
     .map_err(|e| format!("Mojang's {component} manifest: {e}"))?;
@@ -280,7 +280,7 @@ pub fn java_runtime(
                     executables.push(path.clone());
                 }
                 downloads.push(File {
-                    url: text(raw, "url")?,
+                    url: mojang_url(&text(raw, "url")?),
                     sha1: text(raw, "sha1")?,
                     size: raw["size"].as_u64(),
                     path,

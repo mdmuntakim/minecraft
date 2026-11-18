@@ -364,7 +364,7 @@ pub fn download(
                 continue;
             }
             items.push(Item {
-                url: url.into(),
+                url: mojang_url(url),
                 path: root.join("libraries").join(path),
                 sha1: sha1.into(),
                 size: artifact["size"].as_u64().unwrap_or(0),
