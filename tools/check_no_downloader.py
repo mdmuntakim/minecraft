@@ -125,7 +125,7 @@ def check_sources(check):
         "accounts.rs: the Android branch never calls the downloader",
     )
     check.require(
-        '#[cfg(not(target_os = "android"))]\n            {\n                let wanted = Wanted'
+        '#[cfg(not(target_os = "android"))]\n            let v = {\n                let pins = Pins::starling();\n                let wanted = Wanted'
         in accounts,
         "accounts.rs: the downloader is behind #[cfg(not(target_os = \"android\"))]",
     )
@@ -151,8 +151,9 @@ def check_sources(check):
     )
 
 
-def check_library(check, path, label):
-    data = Path(path).read_bytes()
+def check_library(check, source, label):
+    # A path on disk, or the bytes already read out of the APK.
+    data = source if isinstance(source, bytes) else Path(source).read_bytes()
     for host in FORBIDDEN:
         check.require(host not in data, f"{label}: no {host.decode()!r} in the library")
     for name in REQUIRED:

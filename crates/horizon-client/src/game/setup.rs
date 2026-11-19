@@ -322,8 +322,16 @@ fn texts(step: &Step) -> (&'static str, String, Option<String>) {
             Some(tr("waiting_browser")),
         ),
         Step::Download([files, files_total, bytes, bytes_total]) => (
-            "Downloading the game",
-            "From Mojang's servers, checked file by file.".into(),
+            if horizon_client::bundled::available() {
+                "Extracting the game"
+            } else {
+                "Downloading the game"
+            },
+            if horizon_client::bundled::available() {
+                "The files the app carries, checked file by file.".into()
+            } else {
+                "From Mojang's servers, checked file by file.".into()
+            },
             Some(if *bytes_total > 0 {
                 format!(
                     "{files} of {files_total} files, {} of {} MB",
@@ -336,7 +344,11 @@ fn texts(step: &Step) -> (&'static str, String, Option<String>) {
         ),
         Step::Java(done, total) => (
             "Preparing the game",
-            "Downloading Java, which prepares the game files.".into(),
+            if horizon_client::bundled::available() {
+                "Unpacking the Java runtime the app carries.".into()
+            } else {
+                "Downloading Java, which prepares the game files.".into()
+            },
             (*total > 0).then(|| format!("{} of {} MB", mb(*done), mb(*total))),
         ),
         Step::Unpacking => ("Preparing the game", "Unpacking Java.".into(), None),

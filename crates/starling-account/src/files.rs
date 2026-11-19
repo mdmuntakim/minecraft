@@ -29,7 +29,10 @@ pub struct Pins {
 }
 
 impl Pins {
-    /// Starling's own pins, built in.
+    /// Starling's own pins, built in. The phone build carries its payload's manifest instead, so
+    /// research-lock.json (which also names the desktop runtimes' addresses) is not embedded in
+    /// the Android library.
+    #[cfg(not(target_os = "android"))]
     pub fn starling() -> Pins {
         let lock: Value = serde_json::from_str(include_str!("../../../research-lock.json"))
             .expect("research-lock.json is JSON");

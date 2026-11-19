@@ -223,6 +223,11 @@ def jre_pin(abi):
     source = (ROOT / "crates/starling-account/src/java.rs").read_text(encoding="utf-8")
     block = source.split("pub const JRE25_ANDROID_ARM64: Runtime = Runtime {", 1)[1].split("};", 1)[0]
     url = re.search(r'url:\s*"([^"]+)"', block)
+    if not url:
+        # The phone build keeps an empty URL, so the runtime names the desktop's constant.
+        name = re.search(r"url:\s*([A-Z0-9_]+)", block)
+        url = name and re.search(
+            rf'(?m)^const {re.escape(name.group(1))}: &str = "([^"]+)";', source)
     checksum = re.search(r'sha256:\s*"([0-9a-f]{64})"', block)
     if not url or not checksum:
         sys.exit("offline_bundle: the Java runtime pin is not in java.rs")
@@ -354,7 +359,7 @@ def build(out, base=None, cache=None, from_dir=None, jobs=8):
         "abi": "arm64-v8a",
         "offline": True,
         "game_files": [
-            {"path": item["path"], "size": item["size"], "sha256": item["sha1"]}
+            {"path": item["path"], "size": item["size"], "sha1": item["sha1"]}
             for item in game
         ],
         "archives": [

@@ -78,20 +78,28 @@ jobs:
             -storepass:env HORIZON_ANDROID_STORE_PASSWORD
           printf '%s' "$HORIZON_ANDROID_KEYSTORE" | xargs ls -l
 
-      - name: Build the APK from source (timed)
+      - name: Build the offline APK from source (timed)
         id: build
         run: |
           start="$(date -u +%s)"
-          python3 packaging/android/build_apk.py --profile release
+          python3 packaging/android/build_apk.py --profile release --offline
           end="$(date -u +%s)"
           echo "seconds=$((end - start))" >> "$GITHUB_OUTPUT"
           ls -lh target/android/*.apk
 
+      # The payload is inside the APK: no game-data host is left in the library, one ABI, and
+      # assets/bundled/manifest.json is there (tools/check_no_downloader.py).
+      - name: Check the downloader is out of the APK
+        run: python3 tools/check_no_downloader.py --apk "$(ls target/android/minecraft-*.apk)"
+
       - name: Verify the signature and record the certificate
         run: |
           apk="$(ls target/android/minecraft-*.apk)"
+          version="$(basename "$apk" .apk)"
+          version="${version##*-}"
+          cp "$apk" "minecraft-arm64-${version}.apk"
           "$ANDROID_HOME/build-tools/35.0.0/apksigner" verify --print-certs "$apk" | tee certs.txt
-          sha256sum "$apk" > apk.sha256
+          sha256sum "$apk" "minecraft-arm64-${version}.apk" > apk.sha256
           sha256sum certs.txt apk.sha256 > SHA256SUMS
 
       - name: Source archive
@@ -102,8 +110,12 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: minecraft-apk
+          # The payload is already compressed (PNGs, OGGs, the JRE): zipping it again only
+          # costs the upload time.
+          compression-level: 0
           path: |
             target/android/minecraft-*.apk
+            minecraft-arm64-*.apk
             certs.txt
             apk.sha256
             minecraft-source.tar.gz
@@ -127,6 +139,9 @@ jobs:
             echo "- Source: upstream \`starling-client/starling\` at \`$(git rev-parse --short=10 HEAD)\`, built with its own pipeline \`packaging/android/build_apk.py\` (Rust, Android NDK, JDK 25; no Gradle, no prebuilt APK)."
             echo "- Application id \`rust.minecraft\`, app name \`Minecraft\`; one app, no variant suffix."
             echo "- Signed with this repository's project-owned key; the official upstream release key is not used, requested or stored here."
+            echo "- **Offline build**: every game file (the pinned version file, the client and server jars, the libraries, the asset index and its objects), the Java runtime that prepares them and Bedrock's control textures are inside the APK under \`assets/bundled/\`. A fresh install downloads nothing: the setup unpacks them on the device."
+            echo "- arm64-v8a only: the APK holds one native ABI directory, \`lib/arm64-v8a/\`."
+            echo "- The bundled payload was staged at build time from Mojang's published files (checked against \`research-lock.json\`'s SHA-1 pins) and is not part of the public source tree."
             echo "- Build time (compile + package + sign): ${{ steps.build.outputs.seconds }} s."
             echo
             echo '### Certificate (apksigner verify --print-certs)'
@@ -143,12 +158,14 @@ jobs:
             echo '| APK payload (`lib/arm64-v8a`, dex, assets) | PASS |'
             echo '| Install on a real device or emulator | **NOT TESTED** (no device attached) |'
             echo '| Touch, controllers, frame rates, Android version behaviour | **NOT TESTED** |'
-            echo '| Full offline bundle | **NOT SHIPPED** - standard source build; assets/prepare-kit.zip is used on the phone |'
+            echo '| Offline payload in the APK (`assets/bundled/manifest.json`, `game-files.zip`, the JRE, `assets.zip`) | PASS |'
+            echo '| Downloader absent from `libhorizon_android.so` (`tools/check_no_downloader.py`) | PASS |'
+            echo '| Single ABI (`lib/arm64-v8a/` only) | PASS |'
             echo
             echo '### Files'
             echo
-            for apk in target/android/minecraft-*.apk; do
-              echo "- \`$(basename "$apk")\` - the signed APK."
+            for apk in minecraft-arm64-*.apk target/android/minecraft-*.apk; do
+              echo "- \`$(basename "$apk")\` - the signed offline APK."
             done
             echo '- `minecraft-source.tar.gz` - the exact source it was built from.'
             echo '- `certs.txt`, `apk.sha256`, `SHA256SUMS`.'
@@ -158,8 +175,9 @@ jobs:
             cat SHA256SUMS
             echo '```'
           } > "$notes"
-          gh release create "$tag" --title "Minecraft source build $tag" --notes-file "$notes" \
-            "$(ls target/android/minecraft-*.apk)" certs.txt apk.sha256 minecraft-source.tar.gz SHA256SUMS
+          gh release create "$tag" --title "Minecraft offline APK $tag" --notes-file "$notes" \
+            minecraft-arm64-*.apk "$(ls target/android/minecraft-*.apk)" certs.txt apk.sha256 \
+            minecraft-source.tar.gz SHA256SUMS
 
       - name: Job summary
         if: always()

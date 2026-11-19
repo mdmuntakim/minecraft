@@ -11,6 +11,13 @@ horizon-prepare makes from the player's own copy are made on the phone, or copie
     python3 packaging/android/build_apk.py --no-build      # package the library built last
     python3 packaging/android/build_apk.py --install       # and adb install it
     python3 packaging/android/build_apk.py --zip           # and a zip of it to send
+    python3 packaging/android/build_apk.py --offline       # carry the game files and the Java runtime
+
+`--offline` packs the pinned game files, the Java runtime that prepares them and Bedrock's
+control textures into `assets/bundled/` (offline_bundle.py), so a fresh install downloads
+nothing.  It is arm64-v8a only, and every game-data host is out of the Android library
+(tools/check_no_downloader.py).  The payload comes from Mojang's published files at build time,
+checked against the SHA-1 pins in research-lock.json; it is never committed.
 
 Needs the Android SDK (ANDROID_HOME, else the default folder) with the build-tools, platform and
 NDK pinned below, the aarch64-linux-android Rust target, cargo-ndk and a JDK (javac, keytool,
@@ -28,6 +35,10 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+
+# The bundler is a sibling script, imported by name whatever the caller's cwd is.
+if str(Path(__file__).resolve().parent) not in sys.path:
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import offline_bundle
 

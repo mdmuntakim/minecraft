@@ -20,17 +20,23 @@ pub const JAVA_RUNTIME: &str = "jre25-android-arm64.tar.xz";
 pub const ASSETS: &str = "assets.zip";
 
 /// Whether this build carries the offline payload (the Android APK does; the desktop and a
-/// build made without `--offline` do not).
+/// build made without `--offline` do not). Read once: the setup asks every frame.
 pub fn available() -> bool {
     manifest().is_some()
 }
 
-/// The payload's manifest, when the app carries one.
+/// The payload's manifest, when the app carries one: read once from the APK's assets.
 pub fn manifest() -> Option<Value> {
+    static CACHED: std::sync::OnceLock<Value> = std::sync::OnceLock::new();
+    if let Some(manifest) = CACHED.get() {
+        return Some(manifest.clone());
+    }
     if !crate::platform::registered() {
         return None;
     }
-    serde_json::from_slice(&crate::platform::asset(MANIFEST)?).ok()
+    let manifest: Value = serde_json::from_slice(&crate::platform::asset(MANIFEST)?).ok()?;
+    let _ = CACHED.set(manifest.clone());
+    Some(manifest)
 }
 
 /// An archive's size and SHA-256, as the manifest describes it.

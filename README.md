@@ -40,3 +40,10 @@ the dispatch asks for it:
 ```bash
 gh workflow run android-build --repo mdmuntakim/minecraft -f publish=true
 ```
+
+The build is the offline one: `packaging/android/build_apk.py --offline` puts
+the pinned game files, the Java runtime and Bedrock's controls inside the APK
+(`assets/bundled/`), so a fresh install downloads nothing. See
+[packaging/android/offline-apk.md](packaging/android/offline-apk.md). The APK is
+arm64-v8a only, and `tools/check_no_downloader.py` checks the library holds no
+game-data host.
