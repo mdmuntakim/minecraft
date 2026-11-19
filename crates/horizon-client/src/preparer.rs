@@ -112,18 +112,21 @@ fn run(resources: &Path) -> Result<(), String> {
         return Err("The app's exporter bundle is missing, outdated or damaged. Install the current APK again.".into());
     }
     let jre = home.join("jre25");
-    starling_account::java::install(
-        runtime,
-        &jre,
-        &|done, total| {
-            *shared() = if done >= total {
-                Stage::Unpacking
-            } else {
-                Stage::Java(done, total)
-            };
-        },
-        &|| false,
-    )?;
+    let runtime_progress = |done, total| {
+        *shared() = if done >= total {
+            Stage::Unpacking
+        } else {
+            Stage::Java(done, total)
+        };
+    };
+    match crate::bundled::archive_file(crate::bundled::JAVA_RUNTIME, &home, &mut |done, total| {
+        runtime_progress(done, total)
+    }) {
+        // The offline APK carries the runtime: the preparer unpacks that instead of fetching it.
+        Ok(Some(archive)) => starling_account::java::install_archive(runtime, &jre, &archive)?,
+        Ok(None) => starling_account::java::install(runtime, &jre, &runtime_progress, &|| false)?,
+        Err(e) => return Err(format!("The Java runtime the APK carries: {e}")),
+    }
     let temp = home.join("tmp");
     std::fs::create_dir_all(&temp).map_err(|e| format!("{}: {e}", temp.display()))?;
     let env = |path: &Path| path.display().to_string();

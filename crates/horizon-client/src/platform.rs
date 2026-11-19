@@ -27,6 +27,10 @@ pub struct Hooks {
     pub library_dir: fn() -> Option<PathBuf>,
     /// A file the app carries (the APK's `assets/`), whole; None when it has none of the name.
     pub asset: fn(&str) -> Option<Vec<u8>>,
+    /// A file the app carries streamed into `path` (the caller's `progress` gets the bytes so
+    /// far and in all), for the offline payload's archives, which are too large to hold in
+    /// memory; None when the app carries none of the name.
+    pub asset_to_file: fn(&str, &Path, &mut dyn FnMut(u64, u64)) -> Option<u64>,
     /// Keep the game running in the foreground while it waits for `reason` (`line` says so in
     /// the system's notification), or let that reason go: a phone may cut a background app's
     /// internet, or end it, while the player signs in in the browser.
@@ -101,4 +105,12 @@ pub fn library_dir() -> Option<PathBuf> {
 /// A file the app carries: None without a platform registered, or without the file.
 pub fn asset(name: &str) -> Option<Vec<u8>> {
     HOOKS.get().and_then(|h| (h.asset)(name))
+}
+
+/// A file the app carries, streamed into `path`; None without a platform registered, or
+/// without the file. The bytes land in `path` whole (the caller removes it).
+pub fn asset_to_file(name: &str, path: &Path, progress: &mut dyn FnMut(u64, u64)) -> Option<u64> {
+    HOOKS
+        .get()
+        .and_then(|h| (h.asset_to_file)(name, path, progress))
 }

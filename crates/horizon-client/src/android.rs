@@ -157,6 +157,31 @@ fn asset(name: &str) -> Option<Vec<u8>> {
     Some(bytes)
 }
 
+/// A file of the APK's assets/ streamed into `path`, for the offline payload's archives.
+fn asset_to_file(
+    name: &str,
+    path: &std::path::Path,
+    progress: &mut dyn FnMut(u64, u64),
+) -> Option<u64> {
+    let name = std::ffi::CString::new(name).ok()?;
+    let mut asset = APP.get()?.asset_manager().open(&name)?;
+    let total = asset.length() as u64;
+    let mut file = std::fs::File::create(path).ok()?;
+    let mut buffer = vec![0u8; 1 << 16];
+    let mut done = 0u64;
+    loop {
+        let n = std::io::Read::read(&mut asset, &mut buffer).ok()?;
+        if n == 0 {
+            break;
+        }
+        std::io::Write::write_all(&mut file, &buffer[..n]).ok()?;
+        done += n as u64;
+        progress(done, total);
+    }
+    std::io::Write::flush(&mut file).ok()?;
+    Some(done)
+}
+
 /// `data` sealed by StarlingActivity.sealSecret (the Android Keystore's key).
 fn seal_secret(data: &[u8]) -> Option<Vec<u8>> {
     secret_call("sealSecret", data)
@@ -1277,6 +1302,7 @@ pub fn main(app: AndroidApp) {
         open: open_secret,
         library_dir,
         asset,
+        asset_to_file,
         keep_working,
     });
     horizon_protocol::set_name_servers(dns_servers);

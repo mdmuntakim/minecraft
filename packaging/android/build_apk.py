@@ -29,13 +29,15 @@ import sys
 import zipfile
 from pathlib import Path
 
+import offline_bundle
+
 ROOT = Path(__file__).resolve().parents[2]
 HERE = Path(__file__).resolve().parent
 
 APPLICATION_ID = "rust.minecraft"
 LABEL = "Minecraft"
-VERSION_NAME = "0.8.0"
-VERSION_CODE = 13
+VERSION_NAME = "0.9.0"
+VERSION_CODE = 14
 MIN_SDK = 26  # AAudio (cpal)
 TARGET_SDK = 35
 PLATFORM = 36
@@ -154,11 +156,12 @@ def zip_folder(folder, archive):
             z.writestr(info, file.read_bytes())
 
 
-def assets(out):
+def assets(out, offline=False):
     """The APK's assets/: prepare-kit.zip (PREPARE_KIT, with the paths horizon-prepare reads),
     lowbudget.zip, the skin the setup draws the menus with (packaging/lowbudget/pack, made by its
     make.py), and StarlingVisuals.zip, the shader pack the app puts in shaderpacks/ (also left in
-    `out` for the release page)."""
+    `out` for the release page).  With `offline`, bundled/ holds the payload a fresh install
+    plays from: the game files, the Java runtime and Bedrock's controls (offline_bundle.py)."""
     run(sys.executable, ROOT / "tools/build_android_exporters.py")
     folder = out / "assets"
     shutil.rmtree(folder, ignore_errors=True)
@@ -180,6 +183,10 @@ def assets(out):
     zip_folder(HERE.parent / "lowbudget" / "pack", folder / "lowbudget.zip")
     zip_folder(HERE.parent / "shaderpacks" / "starling-visuals", folder / "StarlingVisuals.zip")
     shutil.copyfile(folder / "StarlingVisuals.zip", out / "StarlingVisuals.zip")
+    if offline:
+        offline_bundle.build(folder / "bundled")
+        if not (folder / "bundled" / "manifest.json").is_file():
+            sys.exit("build_apk: the offline payload has no manifest")
     return folder
 
 
@@ -203,7 +210,7 @@ def compile_java(build_tools, android_jar, out):
     return dex / "classes.dex"
 
 
-def link_resources(aapt2, android_jar, out, assets, abi=ABI):
+def link_resources(aapt2, android_jar, out, assets, abi=ABI, offline=False):
     """The manifest, the launcher icon, the themes and `assets`, compiled and linked into
     `out/base.apk`."""
     manifest = (HERE / "AndroidManifest.xml").read_text(encoding="utf-8")
@@ -250,9 +257,28 @@ def link_resources(aapt2, android_jar, out, assets, abi=ABI):
         "--min-sdk-version", MIN_SDK, "--target-sdk-version", TARGET_SDK,
         "--version-code", VERSION_CODE, "--version-name", VERSION_NAME,
         *debug,
+        # The offline payload's archives are already compressed (its PNGs and OGGs have nothing
+        # left to squeeze): storing them makes the APK the payload's own size and its first-run
+        # read a straight copy.
+        *(["-0", "zip", "-0", "xz"] if offline else []),
         "-A", assets,
         *sorted(compiled.glob("*.flat")),
     )
+
+
+def check_offline_apk(apk, abi):
+    """The offline APK carries one ABI and its payload's manifest; a build that lost either is
+    not a build to publish."""
+    with zipfile.ZipFile(apk) as z:
+        names = z.namelist()
+    abis = sorted({name.split("/")[1] for name in names if name.startswith("lib/") and "/" in name[4:]})
+    if abis != [abi]:
+        sys.exit(f"build_apk: the APK's libraries are for {abis}, not only {abi}")
+    if "assets/bundled/manifest.json" not in names:
+        sys.exit("build_apk: the offline payload's manifest is not in the APK")
+    if not any(name.startswith("assets/bundled/game-files") for name in names):
+        sys.exit("build_apk: the offline payload's game files are not in the APK")
+    print(f"build_apk: offline payload present, single ABI {abi}")
 
 
 def add_code(base, libraries, dex, unsigned, abi=ABI):
@@ -304,11 +330,21 @@ def main():
         "--keep-symbols", action="store_true", help="ship the library unstripped (backtraces)"
     )
     parser.add_argument(
-        "--library-only", action="store_true", help="stop at the stripped library: no APK"
+        "--library-only",
+        action="store_true",
+        help="stop at the stripped library: no APK",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="carry the pinned game files, the Java runtime and the controls in the APK, so a "
+        "fresh install downloads nothing (arm64-v8a only)",
     )
     parser.add_argument("--abi", choices=TARGETS, default=ABI, help="Android ABI (default: arm64-v8a)")
     args = parser.parse_args()
     triple, _, _ = TARGETS[args.abi]
+    if args.offline and args.abi != ABI:
+        sys.exit(f"build_apk: --offline is {ABI} only (the payload's Java runtime is)")
 
     sdk = sdk_dir()
     ndk = Path(os.environ.get("ANDROID_NDK_HOME") or sdk / "ndk" / NDK)
@@ -339,7 +375,8 @@ def main():
         # builds (--library-only) don't need one.
         shutil.copyfile(built, out / f"lib{LIBRARY}-symbols.so")
 
-    link_resources(tool(build_tools, "aapt2"), android_jar, out, assets(out), args.abi)
+    link_resources(tool(build_tools, "aapt2"), android_jar, out, assets(out, args.offline),
+                   args.abi, args.offline)
     dex = compile_java(build_tools, android_jar, out)
     libraries = build_launchers(ndk, out, args.abi)
     libraries[library.name] = library
@@ -348,6 +385,8 @@ def main():
     run(tool(build_tools, "zipalign"), "-P", "16", "-f", "4", out / "unsigned.apk", aligned)
     apk = out / f"minecraft-{VERSION_NAME}-{args.abi}.apk"
     sign(build_tools, aligned, apk, out)
+    if args.offline:
+        check_offline_apk(apk, args.abi)
     print(apk)
     if args.zip:
         # Sent where an .apk is refused (a chat, a phone away from adb): unzip, then install.

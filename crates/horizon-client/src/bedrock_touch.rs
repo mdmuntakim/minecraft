@@ -223,23 +223,31 @@ pub fn fetch(resources: &Path) -> Result<usize, String> {
         manifest["repository"].as_str().unwrap_or_default(),
         manifest["revision"].as_str().unwrap_or_default(),
     );
+    // The offline APK carries the raw sources (packaging/android/offline_bundle.py): they come
+    // out of its payload, never off the network.
+    let bundled = crate::bundled::folder(crate::bundled::ASSETS).unwrap_or(None);
     let agent = ureq::AgentBuilder::new()
         .timeout_connect(Duration::from_secs(15))
         .timeout_read(Duration::from_secs(30))
         .build();
     let get = |entry: &serde_json::Value| -> Result<Vec<u8>, String> {
         let source = entry["source"].as_str().unwrap_or_default();
-        let url = format!("https://raw.githubusercontent.com/{repository}/{revision}/{source}");
-        let mut bytes = Vec::new();
-        std::io::Read::read_to_end(
-            &mut agent
-                .get(&url)
-                .call()
-                .map_err(|e| format!("{source}: {e}"))?
-                .into_reader(),
-            &mut bytes,
-        )
-        .map_err(|e| format!("{source}: {e}"))?;
+        let bytes = if let Some(dir) = &bundled {
+            std::fs::read(dir.join(source)).map_err(|e| format!("{source}: {e}"))?
+        } else {
+            let url = format!("https://raw.githubusercontent.com/{repository}/{revision}/{source}");
+            let mut bytes = Vec::new();
+            std::io::Read::read_to_end(
+                &mut agent
+                    .get(&url)
+                    .call()
+                    .map_err(|e| format!("{source}: {e}"))?
+                    .into_reader(),
+                &mut bytes,
+            )
+            .map_err(|e| format!("{source}: {e}"))?;
+            bytes
+        };
         let sha1 = entry["sha1"].as_str().unwrap_or_default();
         if blob_sha1(&bytes) != sha1 {
             return Err(format!("{source}: not the file the manifest names"));

@@ -4,11 +4,18 @@
 //! the files land on the player's device, in the official launcher's layout
 //! (`versions/<v>/<v>.jar`, `libraries/…`, `assets/indexes|objects`) that horizon-prepare reads.
 use serde_json::Value;
+#[cfg(not(target_os = "android"))]
 use sha1::{Digest, Sha1};
+#[cfg(not(target_os = "android"))]
 use std::io::{Read, Write};
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+#[cfg(not(target_os = "android"))]
+use std::path::Path;
+use std::path::PathBuf;
+#[cfg(not(target_os = "android"))]
 use std::sync::Mutex;
+#[cfg(not(target_os = "android"))]
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+#[cfg(not(target_os = "android"))]
 use std::time::Duration;
 
 /// What `research-lock.json` pins about the game files.
@@ -57,6 +64,7 @@ pub struct Sources {
 /// owner's `mdmuntakim/minecraft-assets` repository when `HORIZON_MINECRAFT_DOWNLOAD_BASE` holds
 /// the base to download from instead. The files keep the paths they have on Mojang's hosts, so
 /// one base serves the version JSONs, the jars and the asset objects.
+#[cfg(not(target_os = "android"))]
 pub fn download_base(host: &str) -> String {
     std::env::var("HORIZON_MINECRAFT_DOWNLOAD_BASE")
         .ok()
@@ -65,16 +73,19 @@ pub fn download_base(host: &str) -> String {
 }
 
 /// The version files' base: Mojang's version list, or the owner's `minecraft-assets`.
+#[cfg(not(target_os = "android"))]
 pub fn version_base() -> String {
     download_base("https://piston-meta.mojang.com")
 }
 
 /// The game jars' base: Mojang's version data, or the owner's `minecraft-assets`.
+#[cfg(not(target_os = "android"))]
 pub fn jar_base() -> String {
     download_base("https://piston-data.mojang.com")
 }
 
 /// The asset objects' base: Mojang's assets, or the owner's `minecraft-assets`.
+#[cfg(not(target_os = "android"))]
 pub fn objects_base() -> String {
     download_base("https://resources.download.minecraft.net")
 }
@@ -83,6 +94,7 @@ pub fn objects_base() -> String {
 /// picks the base, the rest of the path comes along (`/v1/packages/<sha1>/<version>.json`,
 /// `/assets/<xx>/<hash>`, `/client.jar`, ...). A URL on another host is the player's own and is
 /// taken as it is.
+#[cfg(not(target_os = "android"))]
 pub fn mojang_url(url: &str) -> String {
     let version = version_base();
     let jar = jar_base();
@@ -105,10 +117,12 @@ pub fn mojang_url(url: &str) -> String {
     format!("{}{rest}", base.trim_end_matches('/'))
 }
 
+/// Mojang's servers, or a mock in tests: the base this run downloads the game's files
+/// from, which the owner's `mdmuntakim/minecraft-assets` repository answers when
+/// `HORIZON_MINECRAFT_DOWNLOAD_BASE` holds the base to download from instead. The offline
+/// APK never calls it: its files come out of the APK (crates/horizon-client/src/bundled.rs).
+#[cfg(not(target_os = "android"))]
 impl Sources {
-    /// Mojang's servers, or a mock in tests: the base this run downloads the game's files
-    /// from, which the owner's `mdmuntakim/minecraft-assets` repository answers when
-    /// `HORIZON_MINECRAFT_DOWNLOAD_BASE` holds the base to download from instead.
     pub fn live() -> Self {
         Self {
             meta: version_base(),
@@ -144,6 +158,7 @@ pub struct Installed {
 }
 
 /// One file to fetch: where from, where to, and what it must hash to.
+#[cfg(not(target_os = "android"))]
 struct Item {
     url: String,
     path: PathBuf,
@@ -155,6 +170,7 @@ struct Item {
 /// the thousands of small asset files go over the download workers' few connections instead of
 /// a connection and a TLS handshake each, which a phone's network (and its router) does not
 /// keep up with for long.
+#[cfg(not(target_os = "android"))]
 pub(crate) fn agent() -> ureq::Agent {
     static AGENT: std::sync::OnceLock<ureq::Agent> = std::sync::OnceLock::new();
     AGENT
@@ -170,11 +186,13 @@ pub(crate) fn agent() -> ureq::Agent {
         .clone()
 }
 
+#[cfg(not(target_os = "android"))]
 pub(crate) fn sha1_hex(data: &[u8]) -> String {
     let digest = Sha1::digest(data);
     digest.iter().map(|b| format!("{b:02x}")).collect()
 }
 
+#[cfg(not(target_os = "android"))]
 fn sha1_file(path: &Path) -> Option<String> {
     let mut file = std::fs::File::open(path).ok()?;
     let mut hasher = Sha1::new();
@@ -197,23 +215,28 @@ fn sha1_file(path: &Path) -> Option<String> {
 
 /// How a try at a download failed: worth another (the network dropped for a moment, as a
 /// phone's does when it changes networks, or the server was busy), or not.
+#[cfg(not(target_os = "android"))]
 pub(crate) enum Failure {
     Again(String),
     Final(String),
 }
 
 /// Tries before a download's error is the player's.
+#[cfg(not(target_os = "android"))]
 const TRIES: u32 = 5;
 /// The wait before the second try; it doubles before each one after.
+#[cfg(not(target_os = "android"))]
 const FIRST_WAIT: Duration = Duration::from_secs(1);
 
 /// Whether a server's refusal may pass with time: its own trouble, or its limit on this address.
 /// A mobile network shares one address among many phones, and GitHub answers those with 403 or 429.
+#[cfg(not(target_os = "android"))]
 pub(crate) fn may_pass(code: u16) -> bool {
     code >= 500 || matches!(code, 403 | 408 | 429)
 }
 
 /// `attempt` until it succeeds, a final failure, or [`TRIES`] tries.
+#[cfg(not(target_os = "android"))]
 pub(crate) fn retrying<T>(mut attempt: impl FnMut() -> Result<T, Failure>) -> Result<T, String> {
     let mut wait = FIRST_WAIT;
     for _ in 1..TRIES {
@@ -230,6 +253,7 @@ pub(crate) fn retrying<T>(mut attempt: impl FnMut() -> Result<T, Failure>) -> Re
 }
 
 /// `url`'s body, which must hash to `sha1`; the error names the file, never more of the URL.
+#[cfg(not(target_os = "android"))]
 fn fetch_checked(url: &str, sha1: &str, name: &str) -> Result<Vec<u8>, String> {
     let body = retrying(|| {
         let response = agent().get(url).call().map_err(|e| match e {
@@ -263,6 +287,7 @@ fn fetch_checked(url: &str, sha1: &str, name: &str) -> Result<Vec<u8>, String> {
 }
 
 /// Write through a `.part` file, so a cut-off write never looks finished.
+#[cfg(not(target_os = "android"))]
 fn write_file(path: &Path, data: &[u8]) -> Result<(), String> {
     if let Some(dir) = path.parent() {
         std::fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
@@ -280,6 +305,7 @@ fn write_file(path: &Path, data: &[u8]) -> Result<(), String> {
 
 /// A library applies on the device: Mojang's rules for the OS (a phone counts as Linux, as
 /// horizon-prepare reads it), and no natives classifiers (artifacts only).
+#[cfg(not(target_os = "android"))]
 fn library_applies(library: &Value) -> bool {
     let Some(rules) = library["rules"].as_array() else {
         return true;
@@ -299,6 +325,7 @@ fn library_applies(library: &Value) -> bool {
 /// Fetch the pinned version's files into `root`, in the official launcher's layout: what is
 /// there already with the right hash is kept, so an interrupted download resumes. The version
 /// JSON must be one Starling pins; every other file is checked against the hash it lists.
+#[cfg(not(target_os = "android"))]
 pub fn download(
     sources: &Sources,
     pins: &Pins,
@@ -421,6 +448,7 @@ pub fn download(
 }
 
 /// Every item, a few at a time; what is already there with its hash counts as done.
+#[cfg(not(target_os = "android"))]
 fn fetch_all(
     items: Vec<Item>,
     progress: &(dyn Fn(Progress) + Sync),
@@ -447,30 +475,32 @@ fn fetch_all(
     let stop = AtomicBool::new(false);
     std::thread::scope(|scope| {
         for _ in 0..4 {
-            scope.spawn(|| loop {
-                if stop.load(Ordering::Relaxed) || cancelled() {
-                    stop.store(true, Ordering::Relaxed);
-                    return;
-                }
-                let Some(item) = queue.lock().unwrap().pop() else {
-                    return;
-                };
-                let name = item
-                    .path
-                    .file_name()
-                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
-                let result = if sha1_file(&item.path).as_deref() == Some(item.sha1.as_str()) {
-                    Ok(())
-                } else {
-                    fetch_checked(&item.url, &item.sha1, &name)
-                        .and_then(|data| write_file(&item.path, &data))
-                };
-                match result {
-                    Ok(()) => report(item.size),
-                    Err(e) => {
-                        failed.lock().unwrap().get_or_insert(e);
+            scope.spawn(|| {
+                loop {
+                    if stop.load(Ordering::Relaxed) || cancelled() {
                         stop.store(true, Ordering::Relaxed);
                         return;
+                    }
+                    let Some(item) = queue.lock().unwrap().pop() else {
+                        return;
+                    };
+                    let name = item
+                        .path
+                        .file_name()
+                        .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                    let result = if sha1_file(&item.path).as_deref() == Some(item.sha1.as_str()) {
+                        Ok(())
+                    } else {
+                        fetch_checked(&item.url, &item.sha1, &name)
+                            .and_then(|data| write_file(&item.path, &data))
+                    };
+                    match result {
+                        Ok(()) => report(item.size),
+                        Err(e) => {
+                            failed.lock().unwrap().get_or_insert(e);
+                            stop.store(true, Ordering::Relaxed);
+                            return;
+                        }
                     }
                 }
             });
@@ -485,5 +515,5 @@ fn fetch_all(
     Ok(())
 }
 
-#[cfg(test)]
+#[cfg(all(test, not(target_os = "android")))]
 mod tests;
