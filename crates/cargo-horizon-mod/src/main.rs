@@ -3,12 +3,12 @@
 //!
 //! - `new <path> [--name "Name"]`: a content mod from the template; with
 //!   `--template native [--horizon <commit>]`, a native trait mod's bundle.
-//! - `build`: the `.hmod` in `target/horizon-mod/`, with the mod's `assets/`
+//! - `build`: the `.fabricmod` in `target/horizon-mod/`, with the mod's `assets/`
 //!   and `data/`.
 //! - `run [--game <horizon-client>] [-- <game args>]`: build, then play with
 //!   the mod.
 //! - `check <file> [--json]`: what the registry checks of a submission
-//!   (`.hmod`, `.hnmod`, `.hpack`, resource pack `.zip`, `.hshader`).
+//!   (`.fabricmod`, `.hpack`, resource pack `.zip`, `.hshader`).
 //! - `registry build|review|check|list`: the registry repository's CI.
 use horizon_mods::{Capability, Content, Manifest, Package, manifest::MANIFEST};
 mod check;
@@ -140,7 +140,7 @@ fn new(args: &[String]) -> Result<(), String> {
 
 /// A native trait mod's bundle in `dir` (docs/native-mods.md, "Trait mods"): its
 /// `horizon-mixin.toml` and an `[api]` crate with one hook. It is what the launcher
-/// builds (`native-build <dir>`) and packs as `mixins/<id>/` of a `.hnmod`
+/// builds (`native-build <dir>`) and packs as `mixins/<id>/` of a `.fabricmod`
 /// (docs/api/mod-files.md). `horizon` pins the Horizon commit it is made for.
 fn new_native(
     dir: &Path,
@@ -199,7 +199,7 @@ fn new_native(
     Ok(())
 }
 
-/// Packs the content mod in the current folder into `target/horizon-mod/<id>.hmod`: the
+/// Packs the content mod in the current folder into `target/horizon-mod/<id>.fabricmod`: the
 /// manifest and the files in `assets/` and `data/`.
 fn build() -> Result<PathBuf, String> {
     build_in(Path::new("."))
@@ -227,9 +227,9 @@ fn build_in(root: &Path) -> Result<PathBuf, String> {
     let files: Vec<(&str, &[u8])> = files.iter().map(|(n, b)| (*n, b.as_slice())).collect();
     let dir = root.join("target/horizon-mod");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let path = dir.join(format!("{}.hmod", manifest.id));
     // Write then rename, so a running game never reads half a file.
-    let partial = path.with_extension("hmod.partial");
+    let path = dir.join(format!("{}.fabricmod", manifest.id));
+    let partial = dir.join(format!("{}.fabricmod.partial", manifest.id));
     let bytes = Package::write_files(&manifest_text, None, &files)?;
     std::fs::write(&partial, bytes).map_err(|e| e.to_string())?;
     std::fs::rename(&partial, &path).map_err(|e| e.to_string())?;
@@ -304,18 +304,18 @@ mod tests {
         ];
         new(&new_args).unwrap();
         assert!(!path.join("Cargo.toml").exists());
-        let hmod = build_in(&path).unwrap();
-        assert_eq!(hmod, path.join("target/horizon-mod/gems.hmod"));
-        let package = Package::read(&hmod).unwrap();
+        let fabric = build_in(&path).unwrap();
+        assert_eq!(fabric, path.join("target/horizon-mod/gems.fabricmod"));
+        let package = Package::read(&fabric).unwrap();
         assert!(package.wasm.is_none());
-        let content = Content::read(&hmod, &package.manifest).unwrap();
+        let content = Content::read(&fabric, &package.manifest).unwrap();
         assert!(
             content
                 .files
                 .contains(&"data/gems/horizon/block/glowing_amethyst.json".into())
         );
         assert_eq!(content.files.len(), 8, "{:?}", content.files);
-        let report = check::check(&hmod, check::kind_of(&hmod).unwrap(), None, None).unwrap();
+        let report = check::check(&fabric, check::kind_of(&fabric).unwrap(), None, None).unwrap();
         assert!(
             report.text().contains("no code: content only"),
             "{}",
@@ -336,7 +336,7 @@ mod tests {
     }
 
     #[test]
-    fn the_native_template_packs_into_an_hnmod_the_registry_accepts() {
+    fn the_native_template_packs_into_a_fabricmod_the_registry_accepts() {
         use std::io::Write;
         let dir = std::env::temp_dir().join(format!("horizon-mod-native-{}", std::process::id()));
         let path = dir.join("machine-mod");
@@ -357,8 +357,8 @@ mod tests {
             "schema": 1, "id": "machine_mod", "version": "0.1.0", "game": "26.3",
             "horizon": commit, "mixins": "b".repeat(40),
         });
-        let hnmod = dir.join("machine_mod.hnmod");
-        let mut zip = zip::ZipWriter::new(std::fs::File::create(&hnmod).unwrap());
+        let native_file = dir.join("machine_mod.fabricmod");
+        let mut zip = zip::ZipWriter::new(std::fs::File::create(&native_file).unwrap());
         let options = zip::write::SimpleFileOptions::default();
         zip.start_file("horizon-native.json", options).unwrap();
         zip.write_all(manifest.to_string().as_bytes()).unwrap();
@@ -375,7 +375,13 @@ mod tests {
                 .unwrap();
         }
         zip.finish().unwrap();
-        let report = check::check(&hnmod, check::kind_of(&hnmod).unwrap(), None, None).unwrap();
+        let report = check::check(
+            &native_file,
+            check::kind_of(&native_file).unwrap(),
+            None,
+            None,
+        )
+        .unwrap();
         assert!(report.text().contains("machine_mod"), "{}", report.text());
         // A pin that is not a commit is refused; with none, the folder builds on the
         // instance's Horizon.

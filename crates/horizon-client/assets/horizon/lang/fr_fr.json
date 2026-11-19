@@ -54,7 +54,7 @@
   "horizon.pages.open.horizon_graphics": "Graphismes Horizon...",
   "horizon.pages.open.controller_binds": "Boutons manette...",
   "horizon.pages.open.horizon_settings": "Options Horizon...",
-  "horizon.mods.empty": "Aucun mod : placez des fichiers .hmod dans le dossier horizon-mods",
+  "horizon.mods.empty": "Aucun mod : placez des fichiers .fabricmod dans le dossier horizon-mods",
   "horizon.mods.stopped": " (arrêté)",
   "horizon.mods.not_built": " (non compilé)",
   "horizon.mods.dev": " (dév.)",

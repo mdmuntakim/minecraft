@@ -1,9 +1,9 @@
 //! Native mods installed from a GitHub link (docs/native-mods.md, "Install from GitHub"), so an
 //! author can ship a version without a registry pull request. The link names a repository (its
 //! latest release), a release tag, a branch or tag (`tree/`) or a commit. It is resolved through
-//! GitHub's public API to an exact **release asset** (a `.hnmod`, kept by its SHA-256) or an exact
-//! **commit** (the archive of that commit, whose mod folder is packed into a `.hnmod`), never to a
-//! branch that moves. The result passes the checks the registry's `.hnmod`s pass
+//! GitHub's public API to an exact **release asset** (a `.fabricmod`, kept by its SHA-256) or an exact
+//! **commit** (the archive of that commit, whose mod folder is packed into a `.fabricmod`), never to a
+//! branch that moves. The result passes the checks the registry's `.fabricmod`s pass
 //! (`horizon_mods::index::native::Bundle::read`) before anything is installed, and the origin is
 //! kept beside the file (`horizon-native-mods/<id>.origin.json`) for "check for updates".
 //!
@@ -144,9 +144,9 @@ pub struct Resolved {
     pub tag: Option<String>,
     /// The full commit: what the source link names, and what a commit install fetches.
     pub commit: String,
-    /// The release's `.hnmod`, installed as it is when there is one.
+    /// The release's `.fabricmod`, installed as it is when there is one.
     pub asset: Option<Asset>,
-    /// A release that ships only a content mod (`.hmod`): not supported here yet.
+    /// A release that ships only a content mod (`.fabricmod`): not supported here yet.
     pub content_only: Option<String>,
 }
 
@@ -236,7 +236,7 @@ fn default_head(api: Api, link: &Link) -> Result<String, String> {
     commit_of(api, link, branch)
 }
 
-/// The `.hnmod` of a release's JSON (and a lone `.hmod`, which is not installed here).
+/// The `.fabricmod` of a release's JSON (and a content-only `.fabricmod`, which is not installed here).
 fn assets(release: &serde_json::Value, link: &Link) -> (Option<Asset>, Option<String>) {
     let prefix = format!(
         "https://github.com/{}/{}/releases/download/",
@@ -250,7 +250,7 @@ fn assets(release: &serde_json::Value, link: &Link) -> (Option<Asset>, Option<St
         list.iter()
             .filter(move |a| a["name"].as_str().is_some_and(|n| n.ends_with(ext)))
     };
-    let hnmod = named(".hnmod").find_map(|a| {
+    let native = named(".fabricmod").find_map(|a| {
         let url = a["browser_download_url"].as_str()?.to_owned();
         let name = a["name"].as_str()?.to_owned();
         // Only this repository's own release files.
@@ -264,10 +264,10 @@ fn assets(release: &serde_json::Value, link: &Link) -> (Option<Asset>, Option<St
                 .map(str::to_ascii_lowercase),
         })
     });
-    let hmod = named(".hmod")
+    let content = named(".fabricmod")
         .find_map(|a| a["name"].as_str().map(str::to_owned))
-        .filter(|_| hnmod.is_none());
-    (hnmod, hmod)
+        .filter(|_| native.is_none());
+    (native, content)
 }
 
 fn from_release(api: Api, link: &Link, release: &serde_json::Value) -> Result<Resolved, String> {
@@ -328,7 +328,7 @@ pub struct Origin {
     /// The release asset's name, when it came from one.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub asset: Option<String>,
-    /// The SHA-256 of the installed `.hnmod`.
+    /// The SHA-256 of the installed `.fabricmod`.
     pub sha256: String,
 }
 
@@ -370,7 +370,7 @@ pub fn is_update(origin: &Origin, latest: &Resolved) -> bool {
     }
 }
 
-/// A mod ready to install: its `.hnmod` was read and checked, nothing run.
+/// A mod ready to install: its `.fabricmod` was read and checked, nothing run.
 #[derive(Clone, Debug)]
 pub struct Packed {
     pub id: String,
@@ -390,11 +390,11 @@ fn scratch(name: &str) -> PathBuf {
     native_mods::root().join("github").join(name)
 }
 
-/// Reads `bytes` as `.hnmod`, with the registry's checks, into a file `Packed` names.
+/// Reads `bytes` as `.fabricmod`, with the registry's checks, into a file `Packed` names.
 fn checked(bytes: &[u8], dir: &Path) -> Result<Packed, String> {
     let sum = sha256(bytes);
     fs::create_dir_all(dir).map_err(|e| format!("{}: {e}", dir.display()))?;
-    let file = dir.join(format!("{}.hnmod", &sum[..16]));
+    let file = dir.join(format!("{}.fabricmod", &sum[..16]));
     fs::write(&file, bytes).map_err(|e| format!("{}: {e}", file.display()))?;
     let bundle = format::Bundle::read(&file).inspect_err(|_| {
         let _ = fs::remove_file(&file);
@@ -407,7 +407,7 @@ fn checked(bytes: &[u8], dir: &Path) -> Result<Packed, String> {
     })
 }
 
-/// Every mod folder under `root`: a `horizon-mixin.toml`, or an unpacked `.hnmod`
+/// Every mod folder under `root`: a `horizon-mixin.toml`, or an unpacked `.fabricmod`
 /// (`horizon-native.json`), the rules of `native-build <folder>`. A mod's folder is not searched
 /// further.
 pub fn find_mods(root: &Path) -> Result<Vec<Bundle>, String> {
@@ -466,9 +466,9 @@ fn walk_files(root: &Path, dir: &Path, out: &mut Vec<(String, PathBuf)>) -> Resu
     Ok(())
 }
 
-/// The `.hnmod` of a mod folder, as bytes: its source (Rust, TOML and `data/`) with a manifest made
+/// The `.fabricmod` of a mod folder, as bytes: its source (Rust, TOML and `data/`) with a manifest made
 /// from its `horizon-mixin.toml`, which must pin the Horizon commit it was made for
-/// (`[compatibility] horizon_revision`). An unpacked `.hnmod` (`horizon-native.json`) keeps the
+/// (`[compatibility] horizon_revision`). An unpacked `.fabricmod` (`horizon-native.json`) keeps the
 /// pins and hook points its manifest names. The zip is the same for the same files.
 pub fn pack(bundle: &Bundle) -> Result<Vec<u8>, String> {
     let horizon = bundle.horizon.clone().filter(|h| format::revision(h)).ok_or_else(|| {
@@ -527,7 +527,7 @@ fn download(url: &str) -> Result<Vec<u8>, String> {
     Ok(body)
 }
 
-/// Downloads what `found` names and checks it: the release's `.hnmod` (its SHA-256 compared with
+/// Downloads what `found` names and checks it: the release's `.fabricmod` (its SHA-256 compared with
 /// GitHub's when it reports one), else the mods of the commit's archive, each packed. A repository
 /// of several mods gives several `Packed`. Nothing is installed.
 pub fn fetch(found: &Resolved) -> Result<Vec<Packed>, String> {
@@ -553,11 +553,11 @@ pub fn fetch(found: &Resolved) -> Result<Vec<Packed>, String> {
     if mods.is_empty() {
         return Err(match &found.content_only {
             Some(file) => format!(
-                "{} ships {file}, a content mod: installing .hmod files from GitHub is not supported yet.",
+                "{} ships {file}, a content mod: installing .fabricmod files from GitHub is not supported yet.",
                 found.label()
             ),
             None => format!(
-                "{} holds no native mod (a folder with horizon-mixin.toml, or an unpacked .hnmod).",
+                "{} holds no native mod (a folder with horizon-mixin.toml, or an unpacked .fabricmod).",
                 found.label()
             ),
         });
@@ -635,7 +635,7 @@ pub fn origins(home: &Path) -> Vec<Origin> {
 /// it came from. A mod from the registry or the player's own is never replaced; one from GitHub
 /// is (that is how it updates).
 pub fn install(home: &Path, found: &Resolved, packed: &Packed) -> Result<Origin, String> {
-    let target = home.join(INSTALLED).join(format!("{}.hnmod", packed.id));
+    let target = home.join(INSTALLED).join(format!("{}.fabricmod", packed.id));
     if target.exists() && origin(home, &packed.id).is_none() {
         return Err(format!(
             "{} is already installed and not from GitHub: remove it first.",
@@ -669,7 +669,7 @@ pub fn remove(home: &Path, id: &str) -> Result<bool, String> {
     }
     for path in [
         origin_path(home, id),
-        home.join(INSTALLED).join(format!("{id}.hnmod")),
+        home.join(INSTALLED).join(format!("{id}.fabricmod")),
     ] {
         if let Err(e) = fs::remove_file(&path) {
             if e.kind() != std::io::ErrorKind::NotFound {

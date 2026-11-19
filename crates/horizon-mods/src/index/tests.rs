@@ -1,5 +1,5 @@
 //! The sample index (`tests/index/index-v1.json`, the one docs/api/mod-index.md
-//! shows) and its files: `coords_hud-0.1.0.hmod`, signed with the throwaway
+//! shows) and its files: `coords_hud-0.1.0.fabricmod`, signed with the throwaway
 //! key `test.pub` by minisign 0.12 (its secret key was deleted),
 //! `cozy-1.0.0.hpack`, unsigned, and `glow-1.0.0.hshader`, unsigned
 //! (`horizon-shader new --template post`, then `horizon-shader pack`).
@@ -47,8 +47,8 @@ fn reads_the_sample_and_keeps_unknown_kinds() {
 #[test]
 fn files_pass_against_their_entries() {
     let index = sample();
-    let hmod = fixtures().join("coords_hud-0.1.0.hmod");
-    assert_eq!(check(&index, "coords_hud", &hmod), Ok(Trust::Verified));
+    let fabric = fixtures().join("coords_hud-0.1.0.fabricmod");
+    assert_eq!(check(&index, "coords_hud", &fabric), Ok(Trust::Verified));
     let hpack = fixtures().join("cozy-1.0.0.hpack");
     assert_eq!(check(&index, "cozy", &hpack), Ok(Trust::Unsigned));
     let hshader = fixtures().join("glow-1.0.0.hshader");
@@ -63,33 +63,33 @@ fn a_changed_file_key_or_manifest_is_refused() {
     let index = sample();
     let dir = std::env::temp_dir().join(format!("horizon-index-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
-    let hmod = fixtures().join("coords_hud-0.1.0.hmod");
-    let mut bytes = std::fs::read(&hmod).unwrap();
+    let fabric = fixtures().join("coords_hud-0.1.0.fabricmod");
+    let mut bytes = std::fs::read(&fabric).unwrap();
     let last = bytes.len() - 1;
     bytes[last] ^= 1;
-    let tampered = dir.join("coords_hud-0.1.0.hmod");
+    let tampered = dir.join("coords_hud-0.1.0.fabricmod");
     std::fs::write(&tampered, &bytes).unwrap();
     let e = check(&index, "coords_hud", &tampered).unwrap_err();
     assert!(e.contains("SHA-256"), "{e}");
 
     let mut other_key = index.clone();
     other_key.projects[0].key = Some(OTHER_KEY.into());
-    let e = check(&other_key, "coords_hud", &hmod).unwrap_err();
+    let e = check(&other_key, "coords_hud", &fabric).unwrap_err();
     assert!(e.contains("key"), "{e}");
 
     let mut more_caps = index.clone();
     more_caps.projects[0].versions[0].capabilities.pop();
-    let e = check(&more_caps, "coords_hud", &hmod).unwrap_err();
+    let e = check(&more_caps, "coords_hud", &fabric).unwrap_err();
     assert!(e.contains("isn't what the index lists"), "{e}");
 
     let mut other_level = index.clone();
     other_level.projects[0].versions[0].api_level = Some(1);
-    let e = check(&other_level, "coords_hud", &hmod).unwrap_err();
+    let e = check(&other_level, "coords_hud", &fabric).unwrap_err();
     assert!(e.contains("isn't what the index lists"), "{e}");
     // An index built before levels lists none: the file still passes.
     let mut no_level = index.clone();
     no_level.projects[0].versions[0].api_level = None;
-    assert_eq!(check(&no_level, "coords_hud", &hmod), Ok(Trust::Verified));
+    assert_eq!(check(&no_level, "coords_hud", &fabric), Ok(Trust::Verified));
 
     let mut revoked = index.clone();
     revoked.revoked.push(Revoked {
@@ -98,7 +98,7 @@ fn a_changed_file_key_or_manifest_is_refused() {
         reason: "Test.".into(),
         date: String::new(),
     });
-    let e = check(&revoked, "coords_hud", &hmod).unwrap_err();
+    let e = check(&revoked, "coords_hud", &fabric).unwrap_err();
     assert!(e.contains("taken down: Test."), "{e}");
     std::fs::remove_dir_all(&dir).unwrap();
 }
@@ -127,7 +127,8 @@ fn refuses_broken_indexes() {
         i.projects.push(twin)
     });
     assert!(e.contains("listed twice"), "{e}");
-    let e = broken(&|i| i.projects[0].versions[0].file.url = "http://example.org/x.hmod".into());
+    let e =
+        broken(&|i| i.projects[0].versions[0].file.url = "http://example.org/x.fabricmod".into());
     assert!(e.contains("https"), "{e}");
     // A local test registry may list files on disk; the published one may not.
     let local = text.replace(
@@ -136,7 +137,7 @@ fn refuses_broken_indexes() {
     );
     assert!(Index::parse(&local).unwrap_err().contains("https"));
     assert!(Index::parse_local(&local).is_ok());
-    let e = broken(&|i| i.projects[0].versions[0].file.name = "../coords_hud.hmod".into());
+    let e = broken(&|i| i.projects[0].versions[0].file.name = "../coords_hud.fabricmod".into());
     assert!(e.contains("plain file name"), "{e}");
     let e = broken(&|i| i.projects[0].versions[0].file.name = "coords_hud.zip".into());
     assert!(e.contains("plain file name"), "{e}");

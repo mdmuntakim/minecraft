@@ -2,7 +2,7 @@
 //! builds the sample index (`tests/index/index-v1.json`) exactly.
 use super::*;
 
-const HMOD: &str = "e1135345692f6dd8fd4c51920151944b82333e17049c9bb7d756f27b8deefc53";
+const FABRIC: &str = "e1135345692f6dd8fd4c51920151944b82333e17049c9bb7d756f27b8deefc53";
 const HPACK: &str = "241ac840f9c5ea3f6252d849da10c90d36cb1da4d6cd8d1d268c2760a353cd65";
 const HSHADER: &str = "331cfe29a666a0de804e9a9ff3d19d246eebcfbfa70b4f49bba8482d30ad9f02";
 
@@ -38,8 +38,8 @@ key = "RWTVtuGb/GRXcBf3Re5hzM07EzoStr2sLTJjghJia0xX15ULoZRFFZDb"
 version = "0.1.0"
 published = "2026-10-24"
 game = "26.3"
-file = "coords_hud-0.1.0.hmod"
-sha256 = "{HMOD}"
+file = "coords_hud-0.1.0.fabricmod"
+sha256 = "{FABRIC}"
 signature = """{sig}"""
 "#
     )
@@ -104,7 +104,7 @@ impl Scratch {
         s.write("revoked.toml", REVOKED_TOML);
         s.write("icons/coords_hud.png", "png");
         for (name, hash) in [
-            ("coords_hud-0.1.0.hmod", HMOD),
+            ("coords_hud-0.1.0.fabricmod", FABRIC),
             ("cozy-1.0.0.hpack", HPACK),
             ("glow-1.0.0.hshader", HSHADER),
         ] {
@@ -250,7 +250,7 @@ fn a_mod_may_turn_native_once() {
     native.kind = Kind::NativeMod;
     let mut next = native.versions[0].clone();
     next.version = "2.0.0".into();
-    next.file = "coords_hud-2.0.0.hnmod".into();
+    next.file = "coords_hud-2.0.0.fabricmod".into();
     native.versions.insert(0, next);
     let r = review(
         std::slice::from_ref(&base),
@@ -259,15 +259,11 @@ fn a_mod_may_turn_native_once() {
     );
     assert!(r.errors.is_empty(), "{r:?}");
     assert!(r.notes.iter().any(|n| n.contains("turns native")), "{r:?}");
-    // Its content-only .hmod versions are from before; the new ones native, and a .hmod
+    // Its content-only .fabricmod versions are from before; the new ones native, and a .fabricmod
     // holding native code is native too.
     let none = Path::new("no-such-file");
     assert_eq!(file_kind(&native, &native.versions[1], none), Kind::Mod);
-    assert_eq!(
-        file_kind(&native, &native.versions[0], none),
-        Kind::NativeMod
-    );
-    let unified = std::env::temp_dir().join(format!("unified-{}.hmod", std::process::id()));
+    let unified = std::env::temp_dir().join(format!("unified-{}.fabricmod", std::process::id()));
     let mut zip = zip::ZipWriter::new(std::fs::File::create(&unified).unwrap());
     zip.start_file(
         super::super::native::MANIFEST,
@@ -277,6 +273,10 @@ fn a_mod_may_turn_native_once() {
     zip.finish().unwrap();
     assert_eq!(
         file_kind(&native, &native.versions[1], &unified),
+        Kind::NativeMod
+    );
+    assert_eq!(
+        file_kind(&native, &native.versions[0], &unified),
         Kind::NativeMod
     );
     std::fs::remove_file(unified).unwrap();

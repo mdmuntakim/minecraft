@@ -45,7 +45,7 @@ description, authors, licence and source as they were; a signature when the entr
 id: coords_hud
 version: 0.1.0
 sha256: <hex>
-file: coords_hud-0.1.0.hmod
+file: coords_hud-0.1.0.fabricmod
 submitter: alice
 hmac: <hex HMAC-SHA256 with REGISTRY_UPDATE_KEY of "owner-update-v1\n<id>\n<version>\n<sha256>\n<file>\n<submitter>">
 -->

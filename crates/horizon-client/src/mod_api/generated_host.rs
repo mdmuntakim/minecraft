@@ -884,7 +884,7 @@ pub trait Host {
         unimplemented!("Host::panel_items")
     }
     /// The recipes of type `kind` (`mymod:crusher`), a type outside `minecraft`,
-    /// from `data/<namespace>/recipe/*.json` of the content mods (`.hmod`) and
+    /// from `data/<namespace>/recipe/*.json` of the content mods (`.fabricmod`) and
     /// the world's data packs, in file order: each one's id and its file as
     /// JSON, for the mod to read as it likes. A data pack changes them on
     /// `/reload`, so look them up again when you need them. Empty for a type

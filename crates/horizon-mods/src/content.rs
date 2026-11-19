@@ -738,7 +738,7 @@ pub fn clash(a: (&str, &[String]), b: (&str, &[String])) -> Option<String> {
 }
 
 impl Content {
-    /// The content of the mod at `path` (a `.hmod` or a mod folder).
+    /// The content of the mod at `path` (a `.fabricmod` or a mod folder).
     pub fn read(path: &Path, manifest: &Manifest) -> Result<Content, String> {
         Self::read_declaring(path, manifest, &[])
     }
@@ -925,7 +925,7 @@ impl Content {
         Ok(())
     }
 
-    /// Where the files are read from: the mod's folder or its `.hmod`.
+    /// Where the files are read from: the mod's folder or its `.fabricmod`.
     pub fn source(&self) -> &Path {
         match &self.source {
             Source::Dir(path) | Source::Zip(path) => path,
@@ -1505,7 +1505,7 @@ capabilities = ["registries"]
     }
     #[test]
     fn shape_tables_validate_tuples_defaults_and_collision() {
-        let content = hmod("shape-tuples", MANIFEST_TEXT, &[(
+        let content = fabric("shape-tuples", MANIFEST_TEXT, &[(
             "data/ruby/horizon/block/a.json",
             br#"{"template":"minecraft:stone","shapes":{"properties":["facing","count"],"values":{"north,2":[[0,0,0,1,0.5,1]]},"default":[[0,0,0,1,1,1]]},"collision_shapes":{"default":[]}}"#,
         )]).unwrap();
@@ -1532,7 +1532,7 @@ capabilities = ["registries"]
             let declaration =
                 format!(r#"{{"template":"minecraft:stone","collision_shapes":{value}}}"#);
             assert!(
-                hmod(
+                fabric(
                     "bad-collision",
                     MANIFEST_TEXT,
                     &[("data/ruby/horizon/block/a.json", declaration.as_bytes(),)]
@@ -1553,9 +1553,9 @@ capabilities = ["registries"]
         assert!(nonfinite.check().is_err());
     }
 
-    fn hmod(name: &str, manifest: &str, files: &[(&str, &[u8])]) -> Result<Content, String> {
+    fn fabric(name: &str, manifest: &str, files: &[(&str, &[u8])]) -> Result<Content, String> {
         let dir = scratch(name);
-        let path = dir.join("m.hmod");
+        let path = dir.join("m.fabricmod");
         std::fs::write(&path, Package::write_files(manifest, None, files)?).unwrap();
         let package = Package::read(&path);
         let content = package.and_then(|p| Content::read(&path, &p.manifest));
@@ -1636,7 +1636,7 @@ capabilities = ["registries"]
     fn a_connecting_block_file_names_its_tag_with_a_hash() {
         let cable = br#"{"template": "minecraft:chorus_plant", "connects_to": "ruby:cables"}"#;
         let files: &[(&str, &[u8])] = &[("data/ruby/horizon/block/cable.json", cable)];
-        let e = hmod("bare-tag", MANIFEST_TEXT, files).unwrap_err();
+        let e = fabric("bare-tag", MANIFEST_TEXT, files).unwrap_err();
         assert!(e.contains("#namespace:path"), "{e}");
     }
 
@@ -1650,7 +1650,7 @@ capabilities = ["registries"]
             ("data/c/tags/item/gems/ruby.json", b"{}"),
             ("assets/ruby/textures/block/ruby_block.png", b"png"),
         ];
-        let content = hmod("ok", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("ok", MANIFEST_TEXT, files).unwrap();
         assert_eq!(content.files.len(), 6);
         assert_eq!(
             content.blocks,
@@ -1697,7 +1697,7 @@ capabilities = ["registries"]
             ),
             ("data/ruby/horizon/item/c_flask.json", ITEM),
         ];
-        let content = hmod("remainder", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("remainder", MANIFEST_TEXT, files).unwrap();
         let rests: Vec<_> = content
             .items
             .iter()
@@ -1715,7 +1715,7 @@ capabilities = ["registries"]
         )];
         let read = |declared: &[String]| {
             let dir = scratch("declared-remainder");
-            let path = dir.join("m.hmod");
+            let path = dir.join("m.fabricmod");
             std::fs::write(
                 &path,
                 Package::write_files(MANIFEST_TEXT, None, files).unwrap(),
@@ -1743,7 +1743,7 @@ capabilities = ["registries"]
                 "operation": "add_value", "slot": "mainhand"}],
             "!minecraft:repairable": {}}}"#;
         let files: &[(&str, &[u8])] = &[("data/ruby/horizon/item/ruby_sword.json", sword)];
-        let content = hmod("components", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("components", MANIFEST_TEXT, files).unwrap();
         let components = &content.items[0].components;
         assert_eq!(
             components.keys().collect::<Vec<_>>(),
@@ -1768,7 +1768,7 @@ capabilities = ["registries"]
                 br#"{"category": "harmful", "color": 0}"#,
             ),
         ];
-        let content = hmod("effects", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("effects", MANIFEST_TEXT, files).unwrap();
         let effects: Vec<_> = content
             .effects
             .iter()
@@ -1805,7 +1805,7 @@ capabilities = ["registries"]
         ] {
             let files: &[(&str, &[u8])] =
                 &[("data/ruby/horizon/mob_effect/a.json", file.as_bytes())];
-            let e = hmod(case, MANIFEST_TEXT, files).unwrap_err();
+            let e = fabric(case, MANIFEST_TEXT, files).unwrap_err();
             assert!(e.contains(why), "{case}: {e}");
         }
     }
@@ -1819,7 +1819,7 @@ capabilities = ["registries"]
             ),
             ("data/ruby/horizon/menu/bag.json", br#"{"slots": 4}"#),
         ];
-        let content = hmod("menus", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("menus", MANIFEST_TEXT, files).unwrap();
         let menus: Vec<_> = content
             .menu_types
             .iter()
@@ -1851,7 +1851,7 @@ capabilities = ["registries"]
             ("menu-missing", r#"{"data_slots": 1}"#, "missing field"),
         ] {
             let files: &[(&str, &[u8])] = &[("data/ruby/horizon/menu/a.json", file.as_bytes())];
-            let e = hmod(case, MANIFEST_TEXT, files).unwrap_err();
+            let e = fabric(case, MANIFEST_TEXT, files).unwrap_err();
             assert!(e.contains(why), "{case}: {e}");
         }
     }
@@ -1870,7 +1870,7 @@ capabilities = ["registries"]
                 br#"{"template": "minecraft:snowball", "item": "ruby:dust"}"#,
             ),
         ];
-        let content = hmod("types", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("types", MANIFEST_TEXT, files).unwrap();
         let types: Vec<_> = content
             .entity_types
             .iter()
@@ -1915,7 +1915,7 @@ capabilities = ["registries"]
                 ("data/ruby/horizon/item/gem.json", ITEM),
                 ("data/ruby/horizon/entity_type/a.json", file.as_bytes()),
             ];
-            let e = hmod(case, MANIFEST_TEXT, files).unwrap_err();
+            let e = fabric(case, MANIFEST_TEXT, files).unwrap_err();
             assert!(e.contains(why), "{case}: {e}");
         }
         let shared = snowball(r#", "item": "ruby:gem""#);
@@ -1924,7 +1924,7 @@ capabilities = ["registries"]
             ("data/ruby/horizon/entity_type/a.json", shared.as_bytes()),
             ("data/ruby/horizon/entity_type/b.json", shared.as_bytes()),
         ];
-        let e = hmod("type-shared", MANIFEST_TEXT, files).unwrap_err();
+        let e = fabric("type-shared", MANIFEST_TEXT, files).unwrap_err();
         assert!(e.contains("already throws another entity type"), "{e}");
     }
 
@@ -1936,7 +1936,7 @@ capabilities = ["registries"]
                 r#"{{"template": "minecraft:dirt", {own}, "properties": {{"random_ticks": {ticks}}}}}"#
             );
             let files: &[(&str, &[u8])] = &[("data/ruby/horizon/block/crop.json", text.as_bytes())];
-            hmod("random-ticks", MANIFEST_TEXT, files)
+            fabric("random-ticks", MANIFEST_TEXT, files)
         };
         let ticks =
             |c: Result<Content, String>| c.unwrap().blocks[0].properties.random_ticks.clone();
@@ -1969,7 +1969,7 @@ capabilities = ["registries"]
         let block = br#"{"template": "minecraft:iron_block", "components": {
             "minecraft:max_stack_size": 16, "!minecraft:lore": {}}}"#;
         let files: &[(&str, &[u8])] = &[("data/ruby/horizon/block/ruby_block.json", block)];
-        let content = hmod("block-components", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("block-components", MANIFEST_TEXT, files).unwrap();
         let components = &content.blocks[0].components;
         assert_eq!(
             components.keys().collect::<Vec<_>>(),
@@ -1982,7 +1982,7 @@ capabilities = ["registries"]
     fn a_kinetic_block_names_its_part_its_models_and_a_render_shape() {
         let block = |json: &str| {
             let files: &[(&str, &[u8])] = &[("data/ruby/horizon/block/part.json", json.as_bytes())];
-            hmod("kinetic", MANIFEST_TEXT, files)
+            fabric("kinetic", MANIFEST_TEXT, files)
         };
         let content = block(
             r#"{"template":"minecraft:iron_chain",
@@ -2062,7 +2062,7 @@ capabilities = ["registries"]
         let block = |json: &str| {
             let files: &[(&str, &[u8])] =
                 &[("data/ruby/horizon/block/cable.json", json.as_bytes())];
-            hmod("cable", MANIFEST_TEXT, files)
+            fabric("cable", MANIFEST_TEXT, files)
         };
         let content = block(
             r##"{"template": "minecraft:chorus_plant", "connects_to": "#ruby:cable_joins"}"##,
@@ -2098,7 +2098,7 @@ capabilities = ["registries"]
         let block = |json: &str| {
             let files: &[(&str, &[u8])] =
                 &[("data/ruby/horizon/block/notice.json", json.as_bytes())];
-            hmod("sign", MANIFEST_TEXT, files)
+            fabric("sign", MANIFEST_TEXT, files)
         };
         let files: &[(&str, &[u8])] = &[
             (
@@ -2110,7 +2110,7 @@ capabilities = ["registries"]
                 br#"{"template": "minecraft:oak_wall_sign", "item": false}"#,
             ),
         ];
-        let content = hmod("sign-pair", MANIFEST_TEXT, files).unwrap();
+        let content = fabric("sign-pair", MANIFEST_TEXT, files).unwrap();
         assert_eq!(content.blocks[0].wood_type.as_deref(), Some("ruby:elm"));
         assert_eq!(
             content.blocks[0].wall_block.as_deref(),
@@ -2169,7 +2169,7 @@ capabilities = ["registries"]
             if wanted == "already paired" {
                 files.push(("data/ruby/horizon/block/second.json", second.as_bytes()));
             }
-            let e = hmod("sign-wall", MANIFEST_TEXT, &files).unwrap_err();
+            let e = fabric("sign-wall", MANIFEST_TEXT, &files).unwrap_err();
             assert!(e.contains(wanted), "{wanted}: {e}");
         };
         let wall = r#"{"template": "minecraft:oak_wall_sign", "item": false}"#;
@@ -2215,7 +2215,7 @@ capabilities = ["registries"]
         let tab = |json: &str| {
             let files: &[(&str, &[u8])] =
                 &[("data/ruby/horizon/creative_tab/gems.json", json.as_bytes())];
-            hmod("tab", MANIFEST_TEXT, files)
+            fabric("tab", MANIFEST_TEXT, files)
         };
         let content =
             tab(r#"{"title": "Ruby Gems", "icon": "ruby:ruby", "items": ["ruby:ruby", "minecraft:diamond"]}"#)
@@ -2236,7 +2236,7 @@ capabilities = ["registries"]
     #[test]
     fn refuses_content_outside_its_fence() {
         let refused = |name: &str, files: &[(&str, &[u8])]| {
-            let e = hmod(name, MANIFEST_TEXT, files).unwrap_err();
+            let e = fabric(name, MANIFEST_TEXT, files).unwrap_err();
             assert!(!e.is_empty());
             e
         };
@@ -2416,16 +2416,16 @@ capabilities = ["registries"]
             ("data/kaisyn/structure/a.nbt", b"nbt"),
             ("assets/kaisyn/lang/en_us.json", b"{}"),
         ];
-        let content = hmod("listed", &manifest, files).unwrap();
+        let content = fabric("listed", &manifest, files).unwrap();
         assert_eq!(content.files.len(), 3);
         assert_eq!(content.namespaces, ["ruby", "kaisyn"]);
         // Declarations stay in the id's namespace.
         let decl: &[(&str, &[u8])] = &[("data/kaisyn/horizon/block/a.json", BLOCK)];
-        let e = hmod("listed-decl", &manifest, decl).unwrap_err();
+        let e = fabric("listed-decl", &manifest, decl).unwrap_err();
         assert!(e.contains("declared in data/ruby/horizon/"), "{e}");
         // A namespace it does not list is still outside.
         let other: &[(&str, &[u8])] = &[("data/other/structure/a.nbt", b"nbt")];
-        assert!(hmod("listed-other", &manifest, other).is_err());
+        assert!(fabric("listed-other", &manifest, other).is_err());
     }
 
     #[test]
@@ -2446,14 +2446,14 @@ capabilities = ["registries"]
             .replace("api = \"0.2\"", "api = \"0.1\"")
             .replace("capabilities = [\"registries\"]", "capabilities = []");
         // No code and no registries: nothing to load.
-        let e = hmod("empty", &code_only, &[]).unwrap_err();
+        let e = fabric("empty", &code_only, &[]).unwrap_err();
         assert!(e.contains("mod.wasm: missing"), "{e}");
         // Registries on API 0.1.
         let old = MANIFEST_TEXT.replace("api = \"0.2\"", "api = \"0.1\"");
         assert!(Manifest::parse(&old).unwrap_err().contains("needs api"));
         // Content without the capability, in a mod with code.
         let dir = scratch("no-cap");
-        let path = dir.join("m.hmod");
+        let path = dir.join("m.fabricmod");
         let files: &[(&str, &[u8])] = &[("assets/ruby/lang/en_us.json", b"{}")];
         std::fs::write(
             &path,

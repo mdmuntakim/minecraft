@@ -1,4 +1,4 @@
-//! `horizon-mod.toml`, a mod's manifest, and the `.hmod` file around it.
+//! `horizon-mod.toml`, a mod's manifest, and the `.fabricmod` file around it.
 use serde::{Deserialize, Serialize};
 use std::{
     fmt,
@@ -8,13 +8,13 @@ use std::{
 
 /// The manifest's file name, beside `mod.wasm`.
 pub const MANIFEST: &str = "horizon-mod.toml";
-/// The component's file name in a `.hmod` or a mod folder.
+/// The component's file name in a `.fabricmod` or a mod folder.
 pub const WASM: &str = "mod.wasm";
 /// The API (WIT package `horizon:mods`) versions this build runs: a mod
 /// built for any 0.1.x SDK.
 pub const API: &str = "0.1";
 /// The manifest `api` lines this build loads. 0.2 is 0.1 plus content:
-/// `assets/` and `data/` in the `.hmod`, with blocks, items, creative tabs, mob effects,
+/// `assets/` and `data/` in the `.fabricmod`, with blocks, items, creative tabs, mob effects,
 /// entity types and menu types declared in `data/<id>/horizon/` (docs/mods.md). Code still links API 0.1.
 /// 0.3 is a server mod (experimental): the `horizon-server-mod` world.
 pub const APIS: [&str; 3] = [API, "0.2", SERVER_API];
@@ -58,7 +58,7 @@ pub struct Manifest {
     /// accepted here, so the manifest keeps loading once it is promoted.
     #[serde(default)]
     pub experimental: Vec<Capability>,
-    /// Files the `.hmod` leaves out and the game fetches on the player's device (Starling): a
+    /// Files the `.fabricmod` leaves out and the game fetches on the player's device (Starling): a
     /// ported Java mod's assets, which its authors keep (All Rights Reserved), from the very
     /// file on Modrinth the player could download themselves ([`crate::fetch`]).
     #[serde(default)]
@@ -404,7 +404,7 @@ pub struct Package {
     pub wasm: Option<Vec<u8>>,
 }
 impl Package {
-    /// A `.hmod` (a zip holding `horizon-mod.toml`, `mod.wasm` and, for
+    /// A `.fabricmod` (a zip holding `horizon-mod.toml`, `mod.wasm` and, for
     /// content, `assets/` and `data/`) or a folder holding the same.
     pub fn read(path: &Path) -> Result<Self, String> {
         let (toml, wasm) = if path.is_dir() {
@@ -445,8 +445,8 @@ impl Package {
         }
         Ok(Package { manifest, wasm })
     }
-    /// Whether the mod at `path` (a `.hmod` or a folder) has a [`MANIFEST`]: content, or a legacy
-    /// WebAssembly mod. A `.hmod` holding only native code has none.
+    /// Whether the mod at `path` (a `.fabricmod` or a folder) has a [`MANIFEST`]: content, or a legacy
+    /// WebAssembly mod. A `.fabricmod` holding only native code has none.
     pub fn has_manifest(path: &Path) -> bool {
         if path.is_dir() {
             return path.join(MANIFEST).is_file();
@@ -456,11 +456,11 @@ impl Package {
             .and_then(|f| zip::ZipArchive::new(f).ok())
             .is_some_and(|mut zip| zip.by_name(MANIFEST).is_ok())
     }
-    /// The `.hmod` bytes for `manifest_text` and a component.
+    /// The `.fabricmod` bytes for `manifest_text` and a component.
     pub fn write(manifest_text: &str, wasm: &[u8]) -> Result<Vec<u8>, String> {
         Self::write_files(manifest_text, Some(wasm), &[])
     }
-    /// The `.hmod` bytes for `manifest_text`, a component if the mod has
+    /// The `.fabricmod` bytes for `manifest_text`, a component if the mod has
     /// code, and content `files` (`assets/...`, `data/...`) by path.
     pub fn write_files(
         manifest_text: &str,
@@ -488,7 +488,7 @@ impl Package {
     }
 }
 
-/// The `.hmod` files and mod folders in `dir`, by name.
+/// The `.fabricmod` files and mod folders in `dir`, by name.
 pub fn find(dir: &Path) -> Vec<PathBuf> {
     let Ok(read) = std::fs::read_dir(dir) else {
         return Vec::new();
@@ -496,7 +496,7 @@ pub fn find(dir: &Path) -> Vec<PathBuf> {
     let mut found: Vec<PathBuf> = read
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "hmod") || p.join(MANIFEST).is_file())
+        .filter(|p| p.extension().is_some_and(|e| e == "fabricmod") || p.join(MANIFEST).is_file())
         .collect();
     found.sort();
     found
@@ -599,7 +599,7 @@ capabilities = ["game-read", "hud"]
     fn hmod_round_trips() {
         let dir = std::env::temp_dir().join(format!("horizon-mods-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
-        let path = dir.join("coords_hud.hmod");
+        let path = dir.join("coords_hud.fabricmod");
         std::fs::write(&path, Package::write(EXAMPLE, b"\0asm").unwrap()).unwrap();
         let p = Package::read(&path).unwrap();
         assert_eq!(p.manifest.id, "coords_hud");

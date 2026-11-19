@@ -4,7 +4,9 @@
 //! [`crate::auth`] for online-mode servers, renewed in the background before it runs out. The
 //! game's official files are fetched from Mojang's servers here too. Without a
 //! keystore (a desktop build, `STARLING_ACCOUNTS=1`) the secrets stay in memory for the run.
-use starling_account::files::{Pins, Progress, Sources, Wanted};
+use starling_account::files::Progress;
+#[cfg(not(target_os = "android"))]
+use starling_account::files::{Pins, Sources, Wanted};
 pub use starling_account::skins::ELY_SKINS;
 pub use starling_account::{Account, Provider, SignInStage};
 use starling_account::{Endpoints, MemoryStore, SecretStore, SignIn, SignInState};
@@ -555,24 +557,61 @@ pub fn download_files() {
                     s.files = Files::Downloading(p);
                 }
             };
-            let wanted = Wanted {
-                server: true,
-                libraries: true,
-                assets: true,
+            #[cfg(target_os = "android")]
+            {
+                // The offline APK carries every file: unpack it, and never download the game
+                // (packaging/android/offline_bundle.py, bundled.rs).
+                let total = crate::bundled::game_file_count();
+                let (mut reported, mut copied) = (0u64, 0u64);
+                let mut unpacking = |done: u64, total_bytes: u64| {
+                    copied = total_bytes;
+                    if done == total_bytes || done - reported >= (8 << 20) {
+                        reported = done;
+                        progress(Progress {
+                            files: 0,
+                            files_total: total,
+                            bytes: done,
+                            bytes_total: total_bytes,
+                        });
+                    }
+                };
+                let written = crate::bundled::extract_game_files(&root, &mut unpacking)
+                    .map_err(|e| format!("The game files the APK carries: {e}"))?;
+                progress(Progress {
+                    files: written.min(total),
+                    files_total: total,
+                    bytes: copied,
+                    bytes_total: copied,
+                });
+                if cancel.load(Ordering::Relaxed) {
+                    return Err("The download was cancelled.".into());
+                }
+            }
+            #[cfg(not(target_os = "android"))]
+            let v = {
+                let pins = Pins::starling();
+                let wanted = Wanted {
+                    server: true,
+                    libraries: true,
+                    assets: true,
+                };
+                starling_account::files::download(
+                    &Sources::live(),
+                    &pins,
+                    &root,
+                    wanted,
+                    &progress,
+                    &|| cancel.load(Ordering::Relaxed),
+                )?;
+                pins.version
             };
-            let pins = Pins::starling();
-            let installed = starling_account::files::download(
-                &Sources::live(),
-                &pins,
-                &root,
-                wanted,
-                &progress,
-                &|| cancel.load(Ordering::Relaxed),
-            )?;
+            #[cfg(target_os = "android")]
+            let v = crate::bundled::version()
+                .ok_or_else(|| "The APK carries no game version.".to_string())?;
             let done = serde_json::json!({
-                "version": pins.version,
-                "client": installed.client_jar,
-                "server": installed.server_jar,
+                "version": v,
+                "client": root.join("versions").join(&v).join(format!("{v}.jar")),
+                "server": root.join("versions").join(&v).join(format!("{v}-server.jar")),
             });
             std::fs::write(root.join(FILES_DONE), done.to_string()).map_err(|e| e.to_string())
         })();

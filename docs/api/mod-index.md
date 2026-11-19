@@ -1,6 +1,6 @@
 # The registry index and `.hpack`
 
-Horizon's registry lists what is made for Horizon and reviewed: content mods (`.hmod`), native mods (`.hnmod`,
+Horizon's registry lists what is made for Horizon and reviewed: content mods (`.fabricmod`) and native mods (`.fabricmod`),
 [native-mods.md](../native-mods.md)), modpacks (`.hpack`), resource packs and Horizon shader packs (`.hshader`,
 [shaders.md](../shaders.md)). A project is listed by a reviewed pull request in
 [horizon-rust/horizon-mods](https://github.com/horizon-rust/horizon-mods) that links its GitHub repository; its versions are
@@ -24,7 +24,7 @@ Level: preview ([stability.md](stability.md)). Schema 1.
     "versions": [{
       "version": "0.1.0", "published": "2026-10-24", "changelog": "",
       "api": "0.1", "side": "client", "capabilities": ["registries"], "game": "26.3",
-      "file": { "name": "coords_hud-0.1.0.hmod", "url": "https://github.com/horizon-rust/horizon-mods/releases/download/...",
+      "file": { "name": "coords_hud-0.1.0.fabricmod", "url": "https://github.com/horizon-rust/horizon-mods/releases/download/...",
                 "size": 438, "sha256": "e113...", "signature": "untrusted comment: ...\n...\ntrusted comment: ...\n...\n" }
     }]
   }],
@@ -49,7 +49,7 @@ Level: preview ([stability.md](stability.md)). Schema 1.
 | `api_level` | A legacy field in old entries; the launcher ignores it. |
 | `game` | The Minecraft version it is for. |
 | `requires` | A modpack's mods: `{ id, version, sha256 }`, each a version in this index with that hash. |
-| `file` | A plain name with the kind's extension (`.hmod`, `.hnmod`, `.hpack`, `.zip`, `.hshader`), an `https://` URL (the registry's release `https://github.com/horizon-rust/horizon-mods/releases/download/<id>-<version>/<name>`, or an asset of the project's own repository, `https://github.com/<owner>/<repo>/releases/download/<tag>/<name>`: the launcher accepts exactly these shapes), the size (at most 64 MiB), the lowercase hex SHA-256, and the `.minisig` text when the project has a key. |
+| `file` | A plain name with the kind's extension (`.fabricmod`, `.hpack`, `.zip`, `.hshader`), an `https://` URL (the registry's release `https://github.com/horizon-rust/horizon-mods/releases/download/<id>-<version>/<name>`, or an asset of the project's own repository, `https://github.com/<owner>/<repo>/releases/download/<tag>/<name>`: the launcher accepts exactly these shapes), the size (at most 64 MiB), the lowercase hex SHA-256, and the `.minisig` text when the project has a key. |
 | `revoked` | Files taken down: one file by `sha256`, or every version of `id` without it. The launcher refuses to install them and turns installed copies off with the reason. |
 
 Readers ignore fields they don't know, so an optional field can be added to schema 1. Renaming or removing a field, or
@@ -144,7 +144,7 @@ mods built in the registry (`native/<name>/`):
 version = "0.1.0"                # letters, digits, '.', '-', '_': the release tag is <id>-<version>
 published = "2026-10-24"
 game = "26.3"
-file = "coords_hud-0.1.0.hmod"   # the name players download, a release asset of the registry
+file = "coords_hud-0.1.0.fabricmod"   # the name players download, a release asset of the registry
 sha256 = "e113..."               # pins the reviewed file
 signature = """untrusted comment: ..."""   # when the project has a key
 changelog = ""                   # optional
@@ -170,7 +170,7 @@ The submission form's service (`crates/horizon-mod-registry`) lists a new projec
 reads the repository's address and the page, and opens the pull request. It no longer takes updates for a project listed
 with a `repo`: "publish a GitHub release in <repo>". Projects without a `repo` can still be updated through the form
 (it uploads the file to the repository's `staging` release as `<sha256>.<extension>` and opens a pull request; an
-owner's update with nothing else changed is merged by `owner-update` once the checks pass). An owner may turn a `mod` into a `native-mod` once by sending an `.hnmod`
+owner's update with nothing else changed is merged by `owner-update` once the checks pass). An owner may turn a `mod` into a `native-mod` once by sending an `.fabricmod`
 (reviewed by hand, never an owner update); no other kind change goes through. A submission that GitHub broke off after
 making its `submit/<id>-<version>` branch can be sent again: the same account's retry starts that branch again from
 `main` while it has no open pull request; anyone else's is refused.

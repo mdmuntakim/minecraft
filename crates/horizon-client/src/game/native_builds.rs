@@ -276,7 +276,7 @@ fn folder_mods_on(off: &BTreeSet<String>) -> BTreeSet<String> {
         .flatten()
         .flatten()
         .map(|e| e.path())
-        .filter(|p| p.extension().is_some_and(|e| e == "hnmod"))
+        .filter(|p| p.extension().is_some_and(|e| e == "fabricmod"))
         .filter_map(|p| horizon_mods::index::native::Bundle::read(&p).ok())
         .map(|bundle| bundle.manifest.id)
         .filter(|id| !off.contains(id))
@@ -437,7 +437,7 @@ fn bundles_body() -> Result<Vec<u8>, String> {
     let mut paths: Vec<PathBuf> = std::fs::read_dir(&folder)
         .map(|d| d.flatten().map(|e| e.path()).collect())
         .unwrap_or_default();
-    paths.retain(|p| p.extension().is_some_and(|e| e == "hnmod"));
+    paths.retain(|p| p.extension().is_some_and(|e| e == "fabricmod"));
     let mut mods = Vec::new();
     for path in paths {
         let Ok(bundle) = horizon_mods::index::native::Bundle::read(&path) else {
@@ -1057,7 +1057,7 @@ impl Game<'_> {
                     "Native mods".to_owned(),
                     format!(
                         "{playing}{found} Native mods run with the game's full access. To add \
-                         one, open its .hnmod with Starling and press Compile on its row."
+                         one, open its .fabricmod with Starling and press Compile on its row."
                     ),
                 )
             }

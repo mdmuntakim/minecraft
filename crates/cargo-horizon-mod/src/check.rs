@@ -1,6 +1,6 @@
 //! `cargo horizon-mod check <file>`: what the registry checks of a submission,
 //! run anywhere: its kind's own checks (docs/api/mod-index.md), its signature
-//! when given a key, and for a `.hmod` that it is content only.
+//! when given a key, and for a `.fabricmod` that it is content only.
 use horizon_mods::{
     Package,
     index::{self, Facts, Kind},
@@ -90,8 +90,12 @@ impl Report {
 /// The kind a file's extension says.
 pub fn kind_of(path: &Path) -> Option<Kind> {
     match path.extension()?.to_str()? {
-        "hmod" => Some(Kind::Mod),
-        "hnmod" => Some(Kind::NativeMod),
+        // `.fabricmod` covers content and native mods; the archive says which.
+        "fabricmod" => Some(if horizon_mods::index::native::holds(path) {
+            Kind::NativeMod
+        } else {
+            Kind::Mod
+        }),
         "hpack" => Some(Kind::Modpack),
         "zip" => Some(Kind::ResourcePack),
         "hshader" => Some(Kind::Shader),
@@ -136,7 +140,7 @@ pub fn check(
 }
 
 /// A mod is content only: WebAssembly code mods don't run any more, code mods are native
-/// (`.hnmod`, docs/native-mods.md). `inspect` already read its content as the game does.
+/// (`.fabricmod`, docs/native-mods.md). `inspect` already read its content as the game does.
 fn content_only(path: &Path) -> Result<(), String> {
     match Package::read(path)?.wasm {
         Some(_) => Err(
@@ -168,16 +172,16 @@ mod tests {
                 .contains("cozy 1.0.0 (modpack, format 1, for 26.3)")
         );
         // A mod with WebAssembly code is refused: code mods are native.
-        let hmod = fixture("coords_hud-0.1.0.hmod");
+        let fabric = fixture("coords_hud-0.1.0.fabricmod");
         let key = std::fs::read_to_string(fixture("test.pub")).unwrap();
-        let sig = std::fs::read_to_string(fixture("coords_hud-0.1.0.hmod.minisig")).unwrap();
+        let sig = std::fs::read_to_string(fixture("coords_hud-0.1.0.fabricmod.minisig")).unwrap();
         let key = key.lines().last().unwrap();
-        let e = check(&hmod, Kind::Mod, Some(key), Some(&sig))
+        let e = check(&fabric, Kind::Mod, Some(key), Some(&sig))
             .err()
             .unwrap();
         assert!(e.contains("native mod"), "{e}");
         let e = check(
-            &hmod,
+            &fabric,
             Kind::Mod,
             Some(key),
             Some("untrusted comment: x\nRUQ=\n"),

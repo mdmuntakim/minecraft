@@ -54,7 +54,7 @@
   "horizon.pages.open.horizon_graphics": "Графіка Horizon…",
   "horizon.pages.open.controller_binds": "Кнопки геймпада…",
   "horizon.pages.open.horizon_settings": "Налаштування Horizon…",
-  "horizon.mods.empty": "Немає модів: покладіть файли .hmod у теку horizon-mods",
+  "horizon.mods.empty": "Немає модів: покладіть файли .fabricmod у теку horizon-mods",
   "horizon.mods.stopped": " (зупинено)",
   "horizon.mods.not_built": " (не зібрано)",
   "horizon.mods.dev": " (розробка)",

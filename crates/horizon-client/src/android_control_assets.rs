@@ -20,6 +20,9 @@ pub fn fetch(root: &Path, progress: impl Fn(u64, u64)) -> Result<()> {
     let entries = manifest["files"]
         .as_array()
         .ok_or("Missing control files")?;
+    // The offline APK carries the textures (packaging/android/offline_bundle.py): they come out
+    // of `assets/bundled/assets.zip`, never off the network.
+    let bundled = crate::bundled::folder(crate::bundled::ASSETS)?;
     progress(0, entries.len() as u64);
     for (index, entry) in entries.iter().enumerate() {
         let name = entry["path"].as_str().ok_or("Missing control path")?;
@@ -53,12 +56,17 @@ pub fn fetch(root: &Path, progress: impl Fn(u64, u64)) -> Result<()> {
         let url =
             format!("https://raw.githubusercontent.com/Mojang/bedrock-samples/{revision}/{source}");
         let mut bytes = Vec::new();
-        agent
-            .get(&url)
-            .call()?
-            .into_reader()
-            .take(size + 1)
-            .read_to_end(&mut bytes)?;
+        if let Some(dir) = &bundled {
+            // The payload's own copy, at the path it has on Mojang's samples repository.
+            bytes = fs::read(dir.join(&source))?;
+        } else {
+            agent
+                .get(&url)
+                .call()?
+                .into_reader()
+                .take(size + 1)
+                .read_to_end(&mut bytes)?;
+        }
         if bytes.len() as u64 != size || format!("{:x}", Sha256::digest(&bytes)) != hash {
             return Err(format!("Control texture checksum mismatch: {name}").into());
         }

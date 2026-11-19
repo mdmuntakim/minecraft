@@ -77,7 +77,7 @@ pub fn classify(path: &Path) -> (Kind, String) {
     if let Some(prefix) = found("horizon-mod.toml") {
         return (Kind::Mod, prefix);
     }
-    if ext == "hmod" {
+    if ext == "fabricmod" {
         return (Kind::Mod, String::new());
     }
     if let Some(prefix) = found("level.dat") {
@@ -203,7 +203,7 @@ pub fn install(path: &Path, name: &str, places: &Places) -> Result<Installed, St
             let dir = places.game.join("horizon-mods");
             fs::create_dir_all(&dir).map_err(fail)?;
             if prefix.is_empty() {
-                copy_file(path, &unique(&dir, &title, ".hmod")).map_err(fail)?;
+                copy_file(path, &unique(&dir, &title, ".fabricmod")).map_err(fail)?;
             } else {
                 extract_into(path, &prefix, &unique(&dir, &title, ""), &[]).map_err(fail)?;
             }
@@ -217,7 +217,7 @@ pub fn install(path: &Path, name: &str, places: &Places) -> Result<Installed, St
             let id = bundle.manifest.id;
             let dir = places.game.join("horizon-native-mods");
             fs::create_dir_all(&dir).map_err(fail)?;
-            copy_file(path, &dir.join(format!("{id}.hnmod"))).map_err(fail)?;
+            copy_file(path, &dir.join(format!("{id}.fabricmod"))).map_err(fail)?;
             format!("Native mod \"{id}\" added: compile it in Options > Mods")
         }
         Kind::Resources => {

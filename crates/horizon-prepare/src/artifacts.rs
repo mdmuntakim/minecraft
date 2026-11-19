@@ -347,9 +347,8 @@ pub(crate) fn import_manifest(lock: &Lock, files: &GameFiles) -> Result<Value, S
                 return Err(format!(
                     "{} is not a {version} version file Horizon knows (sha1 {checksum}): your \
                      launcher may have rewritten it, or Mojang republished it. Prepare from the \
-                     Horizon launcher, which downloads Mojang's own, or save \
-                     https://piston-meta.mojang.com/v1/packages/{pinned}/{version}.json as {} \
-                     and prepare again.",
+                     Horizon launcher, which downloads Mojang's own, or save the pinned version \
+                     file (sha1 {pinned}) as {} and prepare again.",
                     source.display(),
                     destination.display()
                 ));

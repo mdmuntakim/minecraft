@@ -54,7 +54,7 @@
   "horizon.pages.open.horizon_graphics": "Horizon-Grafik …",
   "horizon.pages.open.controller_binds": "Controller-Belegung …",
   "horizon.pages.open.horizon_settings": "Horizon-Einstellungen …",
-  "horizon.mods.empty": "Keine Mods: Lege .hmod-Dateien in den Ordner horizon-mods",
+  "horizon.mods.empty": "Keine Mods: Lege .fabricmod-Dateien in den Ordner horizon-mods",
   "horizon.mods.stopped": " (angehalten)",
   "horizon.mods.not_built": " (nicht gebaut)",
   "horizon.mods.dev": " (Entwicklung)",

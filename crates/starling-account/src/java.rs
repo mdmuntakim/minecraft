@@ -3,9 +3,13 @@
 //! references are recorded in THIRD_PARTY_NOTICES.md).
 //! It is fetched once, checked against the hash pinned here, and unpacked in a folder of its own;
 //! the preparer runs Mojang's code in it (horizon-prepare's exporters), and it can go afterwards.
+#[cfg(not(target_os = "android"))]
 use crate::files::Failure;
+#[cfg(not(target_os = "android"))]
 use sha2::{Digest, Sha256};
-use std::io::{BufReader, Read, Write};
+#[cfg(not(target_os = "android"))]
+use std::io::Read;
+use std::io::{BufReader, Write};
 use std::path::{Component, Path, PathBuf};
 
 /// A runtime archive (`.tar.xz`) and what it must be.
@@ -15,9 +19,25 @@ pub struct Runtime {
     pub size: u64,
 }
 
+// The addresses the desktop game fetches a runtime from. The offline APK carries its runtime
+// (packaging/android/offline_bundle.py), so its library keeps no address at all: an empty URL
+// and an `install` that refuses, so no phone build can go fetching one.
+#[cfg(not(target_os = "android"))]
+const JRE25_ARM64_URL: &str = "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre25/jre25-android-arm64.tar.xz";
+#[cfg(target_os = "android")]
+const JRE25_ARM64_URL: &str = "";
+#[cfg(not(target_os = "android"))]
+const JRE25_ARM_URL: &str = "https://github.com/SouhardyaMaybe/EclipseJRE/releases/download/jres-v1.0.0/jre25-arm-20261009-release.tar.xz";
+#[cfg(target_os = "android")]
+const JRE25_ARM_URL: &str = "";
+#[cfg(not(target_os = "android"))]
+const JRE25_X86_64_URL: &str = "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre25/jre25-android-x86_64.tar.xz";
+#[cfg(target_os = "android")]
+const JRE25_X86_64_URL: &str = "";
+
 /// OpenJDK 25.0.5 for Android on 64-bit ARM (its release `download_jre25`).
 pub const JRE25_ANDROID_ARM64: Runtime = Runtime {
-    url: "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre25/jre25-android-arm64.tar.xz",
+    url: JRE25_ARM64_URL,
     sha256: "d3eb7afe2240c26728a1bb440502c5f18ac3883e932d202dd7f0c9bcbbce4c37",
     size: 38_031_580,
 };
@@ -26,14 +46,14 @@ pub const JRE25_ANDROID_ARM64: Runtime = Runtime {
 /// The AngelAuraMC ARM32 25.0.5 build returned incorrect floating-point results
 /// in on-device tests, including Math.pow(2, -1), and could not generate reports.
 pub const JRE25_ANDROID_ARM: Runtime = Runtime {
-    url: "https://github.com/SouhardyaMaybe/EclipseJRE/releases/download/jres-v1.0.0/jre25-arm-20261009-release.tar.xz",
+    url: JRE25_ARM_URL,
     sha256: "528457305c073128b0e0e2478e2b0c41af1c92a0621061cce7ecccd66bdd103d",
     size: 26_646_332,
 };
 
 /// OpenJDK 25 for Android x86_64, pinned to the publisher's release digest.
 pub const JRE25_ANDROID_X86_64: Runtime = Runtime {
-    url: "https://github.com/AngelAuraMC/angelauramc-openjdk-build/releases/download/download_jre25/jre25-android-x86_64.tar.xz",
+    url: JRE25_X86_64_URL,
     sha256: "7fca862ee1b2d5fe23cd9c9c3d9b7ad3c241947ad1a6cc9464ef2e674867105d",
     size: 39_061_384,
 };
@@ -58,6 +78,7 @@ pub fn installed(runtime: &Runtime, dir: &Path) -> bool {
 
 /// `runtime` in `dir` (its `bin`, `lib`...), fetched and unpacked unless it is there already.
 /// `progress` gets the bytes fetched and the archive's size; `cancelled` stops the download.
+#[cfg(not(target_os = "android"))]
 pub fn install(
     runtime: &Runtime,
     dir: &Path,
@@ -71,14 +92,38 @@ pub fn install(
     std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
     let archive = dir.with_extension("tar.xz");
     fetch(runtime, &archive, progress, cancelled)?;
-    let unpacked = unpack(&archive, dir);
-    let _ = std::fs::remove_file(&archive);
+    install_archive(runtime, dir, &archive)
+}
+
+/// The offline APK's path: nothing is fetched on the phone; the payload's archive is unpacked.
+#[cfg(target_os = "android")]
+pub fn install(
+    _runtime: &Runtime,
+    _dir: &Path,
+    _progress: &dyn Fn(u64, u64),
+    _cancelled: &dyn Fn() -> bool,
+) -> Result<(), String> {
+    Err("This build carries no Java runtime. Install the offline APK again.".into())
+}
+
+/// `runtime`, already on the device (the offline APK carries it), unpacked in `dir` with the
+/// same check and marker as [`install`]; the archive goes once it is unpacked.
+pub fn install_archive(runtime: &Runtime, dir: &Path, archive: &Path) -> Result<(), String> {
+    if installed(runtime, dir) {
+        let _ = std::fs::remove_file(archive);
+        return Ok(());
+    }
+    let parent = dir.parent().ok_or("the runtime's folder has no parent")?;
+    std::fs::create_dir_all(parent).map_err(|e| format!("{}: {e}", parent.display()))?;
+    let unpacked = unpack(archive, dir);
+    let _ = std::fs::remove_file(archive);
     unpacked?;
     std::fs::write(dir.join(INSTALLED), runtime.sha256).map_err(|e| e.to_string())
 }
 
 /// The archive into `path`, through a `.part` file, checked as it streams; tried again from the
 /// start when the network drops ([`crate::files::retrying`]).
+#[cfg(not(target_os = "android"))]
 fn fetch(
     runtime: &Runtime,
     path: &Path,
@@ -88,6 +133,7 @@ fn fetch(
     crate::files::retrying(|| fetch_once(runtime, path, progress, cancelled))
 }
 
+#[cfg(not(target_os = "android"))]
 fn fetch_once(
     runtime: &Runtime,
     path: &Path,

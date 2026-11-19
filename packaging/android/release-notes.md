@@ -30,7 +30,7 @@ Horizon Android and Starling are now one app, in [starling-client/starling](http
 - **Clearer build errors:** when a native mod can't compile, the message says which one, right away, and it no longer uses up your builds for the day. **Try again** on a failed compile compiles again.
 - **Build server...** on the Compile screen lets you use your own build server.
 - **A clearer Mods page:** the top says which game is running, the APK's own or a build with your native mods, and what the next start runs. Tick the native mods you want and press **Compile** once; a mod ticked and not in the game yet says so beside it. A build made for an earlier install no longer loads by mistake.
-- **The Mods page finds native mods you copy in** while the game is open, when you open the page. A `.hnmod` Starling can't read gets a row that says why.
+- **The Mods page finds native mods you copy in** while the game is open, when you open the page. A `.fabricmod` Starling can't read gets a row that says why.
 - Compiled native mods: compile them again after this update.
 
 ### Fixed
@@ -54,7 +54,7 @@ Horizon Android and Starling are now one app, in [starling-client/starling](http
 
 ## New in 0.2.2
 
-- **Many more `.hnmod` native mods from [playhorizon.dev/mods](https://playhorizon.dev/mods) now compile**, like AppleSkin, Mod Menu, SmartF3, Freecam, Waymap and Distant Horizons. Open the mod's `.hnmod` with Starling, go to **Mods** and tap **Compile**.
+- **Many more `.fabricmod` native mods from [playhorizon.dev/mods](https://playhorizon.dev/mods) now compile**, like AppleSkin, Mod Menu, SmartF3, Freecam, Waymap and Distant Horizons. Open the mod's `.fabricmod` with Starling, go to **Mods** and tap **Compile**.
 - **Fixed the crash on opening** on GPUs limited to 4096x4096 textures, like the PowerVR GE8320. The largest textures load at half size when they don't fit.
 - **More builds a day:** 16 instead of 8, and a build that fails gives its place back.
 
@@ -65,12 +65,12 @@ Horizon Android and Starling are now one app, in [starling-client/starling](http
 
 ## New in 0.2.0, the biggest update yet
 
-### Mods: `.hmod` and `.hnmod`
+### Mods: `.fabricmod`
 
 Open either kind of file with Starling, from your file manager or your downloads, and it shows up in **Mods**.
 
-- **`.hnmod`, native mods:** tap **Compile**. Starling tells you the risks, builds the game with your mods while you fish or mine, and restarts with them. It takes a few minutes and needs a connection.
-- **`.hmod`, content mods:** data-only mods, with nothing to compile. A dropped download of a mod's assets goes on from where it stopped.
+- **Native mods:** tap **Compile**. Starling tells you the risks, builds the game with your mods while you fish or mine, and restarts with them. It takes a few minutes and needs a connection.
+- **Content mods:** data-only mods, with nothing to compile. A dropped download of a mod's assets goes on from where it stopped.
 
 The old Starling mods (Far View, FPS Overlay, Keystrokes, Minimap, Recipes, Zoom) and the wasm mod format are gone: mods now use Horizon's formats.
 

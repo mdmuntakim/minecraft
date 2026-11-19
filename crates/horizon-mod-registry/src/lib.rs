@@ -900,7 +900,7 @@ pub fn publish(
                 ));
             }
             // A mod may turn native once, never back (`registry::review`,
-            // docs/native-mods.md): its `.hmod` versions stay published.
+            // docs/native-mods.md): its `.fabricmod` versions stay published.
             if entry.kind != kind {
                 if (&entry.kind, &kind) != (&Kind::Mod, &Kind::NativeMod) {
                     return Err(bad(format!(
@@ -1057,7 +1057,7 @@ pub fn publish(
         new = if is_new {
             "new"
         } else if turns_native {
-            "update: turns native, its `.hmod` versions stay published"
+            "update: turns native, its `.fabricmod` versions stay published"
         } else {
             "update"
         },

@@ -5,7 +5,7 @@ functions and is compiled into the game. On a computer the launcher downloads Ru
 phone cannot build the game (Rust and the NDK are gigabytes, and the build takes hours on a phone), so Starling's build
 service does it and the phone swaps in the result:
 
-1. **The mod.** The player opens an `.hnmod` with Starling (`import.rs`), which puts it in `horizon-native-mods/`.
+1. **The mod.** The player opens an `.fabricmod` with Starling (`import.rs`), which puts it in `horizon-native-mods/`.
 2. **Compile.** The top of the Mods page says which game runs (the APK's own, or a build with which mods, compiled
    when), what the next start runs, and whether the native mods turned on are the ones in it; when they are not, it has
    Compile and Use GitHub (slower) (`game/native_builds.rs`). After a warning, the game sends the folder's mods that

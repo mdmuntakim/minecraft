@@ -65,7 +65,7 @@
                 <data android:mimeType="application/octet-stream" />
             </intent-filter>
             <!-- Starling's own extension (.starling: any of them, told apart by what it holds)
-                 and Horizon's mods (.hmod), by name as Bedrock does .mcpack: a file manager that
+                 and Horizon's mods (.fabricmod), by name as Bedrock does .mcpack: a file manager that
                  does not know them offers the apps that do. The extra patterns let the path
                  hold dots before the name. -->
             <intent-filter>
@@ -78,12 +78,9 @@
                 <data android:pathPattern=".*\\.starling" />
                 <data android:pathPattern=".*\\..*\\.starling" />
                 <data android:pathPattern=".*\\..*\\..*\\.starling" />
-                <data android:pathPattern=".*\\.hmod" />
-                <data android:pathPattern=".*\\..*\\.hmod" />
-                <data android:pathPattern=".*\\..*\\..*\\.hmod" />
-                <data android:pathPattern=".*\\.hnmod" />
-                <data android:pathPattern=".*\\..*\\.hnmod" />
-                <data android:pathPattern=".*\\..*\\..*\\.hnmod" />
+                <data android:pathPattern=".*\\.fabricmod" />
+                <data android:pathPattern=".*\\..*\\.fabricmod" />
+                <data android:pathPattern=".*\\..*\\..*\\.fabricmod" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
