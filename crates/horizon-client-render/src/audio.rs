@@ -883,6 +883,7 @@ impl Audio {
         } else {
             Err("no output on a dedicated server".into())
         };
+        #[allow(unreachable_code)]
         let (stream, live) = match opened {
             Ok(v) => (Some(v), true),
             Err(e) => {
