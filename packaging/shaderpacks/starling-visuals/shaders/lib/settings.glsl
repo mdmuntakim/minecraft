@@ -1,28 +1,76 @@
-// Starling Visuals: the options its screen lists.
+// Starling Visuals 3.1: every option the pack exposes. The defaults are the HIGH profile, the
+// one the game's Auto picks on a strong phone; profile.LOW in shaders.properties removes the
+// expensive parts for a weaker device. Values are deliberately conservative on a phone: the
+// pack spends its pixels on the world and the sky, not on deep sample counts.
+//
+// 2.1's rule: a block is never allowed to become a flat sheet of white. The sun's highlight is
+// Fresnel-weighted and divided by pi, the glowing blocks emit from their own texture instead of
+// a large constant, and the film curve has a real black point.
+//
+// 3.1's rule: an emissive id never overrides the texture. Emission is gated on the texel's own
+// brightness, so a block whose sprite is shared with a light source (obsidian under a beacon,
+// pumpkin beside a jack o'lantern) keeps its own colour instead of glowing pale.
 
-#define SUN_STRENGTH 2.4 // [1.5 2.0 2.4 2.8 3.2 3.6]
+// Sun and sky.
+#define SUN_STRENGTH 2.6 // [1.5 2.0 2.6 3.0 3.4 3.8]
 #define SKY_BRIGHTNESS 1.0 // [0.6 0.8 1.0 1.2 1.4]
+#define SKY_SATURATION 1.05 // [0.8 0.9 1.0 1.05 1.1 1.2]
 #define BLOCKLIGHT_STRENGTH 1.0 // [0.5 0.75 1.0 1.25 1.5]
-#define EXPOSURE 0.8 // [0.5 0.6 0.7 0.8 0.9 1.0 1.2 1.4]
-#define SATURATION 1.05 // [0.8 0.9 1.0 1.05 1.1 1.2]
+#define EXPOSURE 0.9 // [0.6 0.7 0.8 0.9 1.0 1.1 1.25 1.4]
+#define SATURATION 1.02 // [0.8 0.9 1.0 1.02 1.05 1.15 1.25]
+#define CONTRAST 1.04 // [0.85 0.9 0.95 1.0 1.04 1.1 1.15 1.2]
+#define WARMTH 0.0 // [-0.15 -0.08 0.0 0.08 0.15]
+#define FOG_DENSITY 1.0 // [0.0 0.5 0.75 1.0 1.5 2.0 3.0]
+#define FOG_HEIGHT 40.0 // [24.0 32.0 40.0 56.0 72.0]
 
-// Shadows: the map's size and reach, and how much of it goes near the player.
+// Shadows. shadowMapResolution and shadowDistance are the two options the game's Auto profile
+// also caps, so they are const lines the loader can rewrite.
 #define SHADOWS
-const int shadowMapResolution = 1024; // [512 1024 2048]
+const int shadowMapResolution = 1024; // [512 1024 2048 4096]
 const float shadowDistance = 64.0; // [32.0 48.0 64.0 96.0 128.0]
 const float sunPathRotation = -25.0; // [-40.0 -30.0 -25.0 -15.0 0.0 15.0 25.0]
 const bool shadowHardwareFiltering = true;
 #define SHADOW_DISTORTION 0.9 // [0.0 0.7 0.85 0.9 0.93]
-#define SHADOW_FILTER 4 // [1 4]
+// One lookup is already four texels of hardware PCF. Two taps are half the work of four and
+// still smooth the edge; LOW uses the single hardware lookup.
+#define SHADOW_FILTER 2 // [1 2 4]
 #define SHADOW_SOFTNESS 1.2 // [0.5 0.8 1.2 1.6 2.4]
 
-// The air and the lens: haze, the sun's rays through it, and the glow around bright things.
-#define FOG_DENSITY 1.0 // [0.0 0.5 0.75 1.0 1.5 2.0 3.0]
+// The air and the lens.
 #define GODRAYS
 #define GODRAYS_STRENGTH 1.0 // [0.5 0.75 1.0 1.5 2.0]
-#define GODRAYS_SAMPLES 10 // [6 10 16]
+#define GODRAYS_SAMPLES 8 // [6 8 10 12 16]
 #define BLOOM
-#define BLOOM_STRENGTH 0.08 // [0.03 0.05 0.08 0.12 0.16]
+#define BLOOM_STRENGTH 0.07 // [0.03 0.05 0.07 0.1 0.14]
+#define BLOOM_THRESHOLD 0.85 // [0.4 0.6 0.8 0.85 1.0 1.2]
+
+// Screen-space contact shadows and the extra surface response.
+#define SSAO
+#define SSAO_STRENGTH 0.65 // [0.0 0.35 0.55 0.65 0.85 1.0]
+#define SSAO_SAMPLES 6 // [4 6 8 12]
+#define SPECULAR
+#define WATER_WAVES
+
+// The world itself.
+#define WAVING_PLANTS
+#define EMISSIVE_BLOCKS
+#define HAND_LIGHT
+#define UNDERWATER_CAUSTICS
+
+// The night sky.
+#define STARS
+#define AURORA
+#define AURORA_STRENGTH 0.4 // [0.0 0.2 0.4 0.6 0.8]
+
+// The lens, at the very end.
+#define COLOR_GRADE
+#define SHARPEN
+#define SHARPEN_STRENGTH 0.18 // [0.0 0.1 0.18 0.3 0.4]
+#define SMOOTH_EDGES
+#define VIGNETTE
+#define VIGNETTE_STRENGTH 0.20 // [0.0 0.08 0.16 0.20 0.3 0.4]
+#define FILM_GRAIN
+#define GRAIN_STRENGTH 0.015 // [0.0 0.008 0.015 0.03 0.05]
+#define TONEMAP 0 // [0 1 2]
 
 // A torch or another glowing block in the hand lights around the player.
-#define HAND_LIGHT
