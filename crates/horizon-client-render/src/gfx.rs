@@ -122,6 +122,11 @@ pub fn outline_width(width: u32) -> f32 {
     2.5f32.max(width as f32 / 1920.0 * 2.5)
 }
 
+/// The hit block outline's stroke. Opaque black rather than vanilla's 40% black: the world pass
+/// is HDR and a shader pack's film curve runs after it, so 40% black over a bright surface is
+/// lifted to grey (or white). An opaque stroke stays black through the curve.
+pub const BLOCK_OUTLINE_COLOR: u32 = 0xff00_0000;
+
 /// ScreenSize, stroke width and ProjectionType.PERSPECTIVE layering.
 pub fn outline_params(width: u32, height: u32) -> [f32; 4] {
     [
@@ -7353,11 +7358,11 @@ impl Renderer {
                 })
             };
             let lines: Vec<[f32; 8]> = if frame.outline_high_contrast {
-                stroke(0xff00_0000, 7.0)
+                stroke(BLOCK_OUTLINE_COLOR, 7.0)
                     .chain(stroke(0xff57_ffe1, width))
                     .collect()
             } else {
-                stroke(0x6600_0000, width).collect()
+                stroke(BLOCK_OUTLINE_COLOR, width).collect()
             };
             self.uploads
                 .buffer(&mut encoder, &self.outline, 0, bytemuck::cast_slice(&lines));
@@ -10329,6 +10334,15 @@ mod tests {
             transient_saves_memory: None,
             limit_bucket: None,
         }
+    }
+
+    /// Vanilla's outline is 40% black, which a shader pack's film curve lifts to grey over a
+    /// bright surface. The stroke has to be opaque black to stay black.
+    #[test]
+    fn block_outline_is_opaque_black() {
+        let color = super::BLOCK_OUTLINE_COLOR;
+        assert_eq!(color >> 24, 0xff, "outline must be opaque");
+        assert_eq!(color & 0x00ff_ffff, 0, "outline must be black");
     }
 
     #[test]
