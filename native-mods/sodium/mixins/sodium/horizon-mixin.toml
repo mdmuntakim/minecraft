@@ -1,0 +1,31 @@
+# Sodium: automatic performance, no settings. The player gets the full-power
+# profile and nothing else; there is nothing to turn on or off.
+[mod]
+id = "sodium"
+version = "0.1.0"
+
+[compatibility]
+horizon_revision = "0d6b103c70633d8fd9443d8d0acd3aadaacedb06"
+
+[[module]]
+id = "runtime"
+file = "crates/horizon-client/src/game.rs"
+name = "sodium"
+source = "runtime.rs"
+
+[[module]]
+id = "native"
+file = "crates/horizon-client/src/game.rs"
+name = "sodium_native"
+source = "native.rs"
+
+# native_hooks::Game::native_frame (a hook point): once a frame, in a world or not, after
+# Horizon's extras. The use of a frame is not a hook point, so the profile is applied from it.
+[[injection]]
+id = "frame"
+kind = "HEAD"
+target = "horizon_client::game::native_hooks::Game<'_>::native_frame"
+helper = "frame.rs"
+bindings = [
+  { name = "game", ty = "&mut crate::game::Game<'_>", value = "&mut *self" },
+]
