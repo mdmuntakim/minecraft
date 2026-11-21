@@ -87,18 +87,12 @@ pub fn mojang_url(url: &str) -> String {
     let version = version_base();
     let jar = jar_base();
     let objects = objects_base();
-    let (base, rest) = if url.starts_with("https://piston-meta.mojang.com") {
-        (
-            version.as_str(),
-            &url["https://piston-meta.mojang.com".len()..],
-        )
-    } else if url.starts_with("https://piston-data.mojang.com") {
-        (jar.as_str(), &url["https://piston-data.mojang.com".len()..])
-    } else if url.starts_with("https://resources.download.minecraft.net") {
-        (
-            objects.as_str(),
-            &url["https://resources.download.minecraft.net".len()..],
-        )
+    let (base, rest) = if let Some(rest) = url.strip_prefix("https://piston-meta.mojang.com") {
+        (version.as_str(), rest)
+    } else if let Some(rest) = url.strip_prefix("https://piston-data.mojang.com") {
+        (jar.as_str(), rest)
+    } else if let Some(rest) = url.strip_prefix("https://resources.download.minecraft.net") {
+        (objects.as_str(), rest)
     } else {
         return url.to_owned();
     };
