@@ -1,5 +1,6 @@
-// Starling Visuals: the moon's texture, in colortex2 (the sky's bodies, black elsewhere), bright
-// enough to stand out of the sky `composite` puts behind it. The sun is composite's own disk.
+// Starling Visuals 2: the moon's texture, in colortex2 (the sky's bodies, black elsewhere),
+// bright enough to stand out of the sky `composite` puts behind it and cool enough to belong to
+// the night. The sun is composite's own disk.
 
 #include "/lib/common.glsl"
 
@@ -27,9 +28,10 @@ uniform int renderStage;
 void main() {
     if (renderStage == MC_RENDER_STAGE_SUN) discard;
     vec4 body = texture2D(gtexture, texcoord) * glcolor;
+    float night = 1.0 - daylight(sunDir());
 
     /* DRAWBUFFERS:2 */
-    gl_FragData[0] = vec4(toLinear(body.rgb) * 1.2 * (1.0 - rainStrength), body.a);
+    gl_FragData[0] = vec4(toLinear(body.rgb) * vec3(0.92, 0.97, 1.0) * 1.35 * night * (1.0 - rainStrength * 0.9), body.a);
 }
 
 #endif

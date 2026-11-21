@@ -2481,7 +2481,8 @@ impl LauncherThemeConfig {
         let mut accent_rgb = parse_hex_color(&self.custom_accent_hex).unwrap_or(def_acc);
         // Protect accent legibility against background. The white preset keeps
         // its white accent: its `on_accent` text is dark, so it stays readable.
-        if is_light && rgb_luminance(accent_rgb) > 0.72 && self.preset != ThemePreset::DaylightFrost {
+        if is_light && rgb_luminance(accent_rgb) > 0.72 && self.preset != ThemePreset::DaylightFrost
+        {
             accent_rgb = blend_rgb(accent_rgb, 0x1E1638, 0.45);
         } else if !is_light && rgb_luminance(accent_rgb) < 0.15 {
             accent_rgb = blend_rgb(accent_rgb, 0xFFFFFF, 0.45);

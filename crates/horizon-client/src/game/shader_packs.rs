@@ -832,12 +832,64 @@ fn name_id(name: &str) -> i32 {
     hash as i32
 }
 
+/// What the blocks drawing one sprite layer say about its `mc_Entity` id.
+#[derive(Default)]
+struct LayerVotes {
+    /// A block named like the sprite draws it.
+    named: bool,
+    /// The ids those named states have, and whether one of them has none.
+    named_ids: std::collections::BTreeSet<i32>,
+    named_unassigned: bool,
+    /// The ids every state drawing it has, and whether one of them has none.
+    ids: std::collections::BTreeSet<i32>,
+    unassigned: bool,
+}
+
+impl LayerVotes {
+    fn vote(&mut self, id: Option<i32>, named: bool) {
+        if named {
+            self.named = true;
+            match id {
+                Some(id) => {
+                    self.named_ids.insert(id);
+                }
+                None => self.named_unassigned = true,
+            }
+        }
+        match id {
+            Some(id) => {
+                self.ids.insert(id);
+            }
+            None => self.unassigned = true,
+        }
+    }
+
+    /// The layer's id. The block the sprite is named after decides, even when it has no id
+    /// (`block/obsidian` belongs to obsidian, not to the beacon that uses it as a base).
+    /// Otherwise every block drawing the sprite must agree on one id: a sprite two blocks share
+    /// with different ids (a jack o'lantern's `block/pumpkin_side`) belongs to neither, and a
+    /// block with no id drawing it vetoes the rest.
+    fn chosen(&self) -> Option<i32> {
+        let (ids, unassigned) = if self.named {
+            (&self.named_ids, self.named_unassigned)
+        } else {
+            (&self.ids, self.unassigned)
+        };
+        if !unassigned && ids.len() == 1 {
+            ids.iter().next().copied()
+        } else {
+            None
+        }
+    }
+}
+
 /// `mc_Entity` (x, y) of each block sprite layer, as (id, fluid) pairs: terrain vertices carry
 /// their sprite layer, not their block. A layer takes the id of the block named like its sprite
-/// (`block/oak_leaves` for `oak_leaves`), else the id most blocks drawing it share (ties: the
-/// lowest); -1 when no block drawing it has one. y is 1 for the fluid sprites, -1 otherwise.
+/// (`block/oak_leaves` for `oak_leaves`), else the one id every block drawing it agrees on; -1
+/// when no block has one, when they disagree, or when one of them has none (see `LayerVotes`).
+/// y is 1 for the fluid sprites, -1 otherwise.
 pub(super) fn block_id_table(pack: &super::PackResources, ids: &BlockIds) -> Vec<i32> {
-    use std::collections::{BTreeMap, BTreeSet};
+    use std::collections::BTreeMap;
     let layers = pack
         .render
         .sprite_layers
@@ -851,16 +903,14 @@ pub(super) fn block_id_table(pack: &super::PackResources, ids: &BlockIds) -> Vec
     let registry = pack.assets.registry;
     let catalog = &pack.render.model_catalog;
     let sprite = |name: &str| pack.render.sprite_layers.get(name).copied();
-    // (layer, id) -> (a block named like the sprite, the blocks).
-    let mut votes: BTreeMap<(u32, i32), (bool, BTreeSet<&str>)> = BTreeMap::new();
+    let mut votes: BTreeMap<u32, LayerVotes> = BTreeMap::new();
     for i in 0..registry.len() {
         let state_id = horizon_world::registry::BlockStateId(i as u32);
         let Some(state) = registry.state(state_id) else {
             continue;
         };
-        let Some(id) = ids.id(&state.name, |k| state.properties.get(k).map(String::as_str)) else {
-            continue;
-        };
+        // A state with no id still votes: it is what stops its sprite taking a co-tenant's id.
+        let id = ids.id(&state.name, |k| state.properties.get(k).map(String::as_str));
         let block = state.name.strip_prefix("minecraft:").unwrap_or(&state.name);
         let mut vote = |layer: u32| {
             let named = pack
@@ -868,9 +918,7 @@ pub(super) fn block_id_table(pack: &super::PackResources, ids: &BlockIds) -> Vec
                 .get(&layer)
                 .and_then(|n| n.strip_prefix("block/"))
                 == Some(block);
-            let v = votes.entry((layer, id)).or_default();
-            v.0 |= named;
-            v.1.insert(&state.name);
+            votes.entry(layer).or_default().vote(id, named);
         };
         // Fluids draw from their own sprites.
         let fluid = match block {
@@ -890,17 +938,11 @@ pub(super) fn block_id_table(pack: &super::PackResources, ids: &BlockIds) -> Vec
             }
         }
     }
-    let mut best: BTreeMap<u32, (bool, usize, i32)> = BTreeMap::new();
-    for ((layer, id), (named, blocks)) in votes {
-        let candidate = (named, blocks.len(), -id);
-        let b = best.entry(layer).or_insert(candidate);
-        if candidate > *b {
-            *b = candidate;
-        }
-    }
-    for (layer, (_, _, id)) in best {
-        if let Some(slot) = table.get_mut(layer as usize * 2) {
-            *slot = -id;
+    for (layer, votes) in votes {
+        if let Some(id) = votes.chosen()
+            && let Some(slot) = table.get_mut(layer as usize * 2)
+        {
+            *slot = id;
         }
     }
     for f in ["water_still", "water_flow", "lava_still", "lava_flow"] {
@@ -911,6 +953,62 @@ pub(super) fn block_id_table(pack: &super::PackResources, ids: &BlockIds) -> Vec
         }
     }
     table
+}
+
+#[cfg(test)]
+mod layer_votes_tests {
+    use super::LayerVotes;
+
+    /// `block/obsidian` is drawn by obsidian (no id) and by the beacon's base (10004). It is
+    /// obsidian's sprite, so it stays material 0: this is the block that turned pale.
+    #[test]
+    fn a_sprite_named_after_a_plain_block_keeps_no_id() {
+        let mut votes = LayerVotes::default();
+        votes.vote(None, true);
+        votes.vote(Some(10004), false);
+        assert_eq!(votes.chosen(), None);
+    }
+
+    /// `block/glass` is glass's sprite (10007) and the beacon's shell (10004): the name wins.
+    #[test]
+    fn a_named_block_with_an_id_wins_over_a_co_tenant() {
+        let mut votes = LayerVotes::default();
+        votes.vote(Some(10007), true);
+        votes.vote(Some(10004), false);
+        assert_eq!(votes.chosen(), Some(10007));
+    }
+
+    /// `block/pumpkin_side` is drawn by pumpkin (no id) and by the jack o'lantern (10004): no
+    /// block owns the name, and they disagree, so it stays material 0.
+    #[test]
+    fn a_shared_sprite_belongs_to_no_one_when_the_blocks_disagree() {
+        let mut votes = LayerVotes::default();
+        votes.vote(None, false);
+        votes.vote(Some(10004), false);
+        assert_eq!(votes.chosen(), None);
+    }
+
+    /// Water and flowing water both name `water_still` and agree on 10001.
+    #[test]
+    fn blocks_that_agree_keep_their_id() {
+        let mut votes = LayerVotes::default();
+        votes.vote(Some(10001), false);
+        votes.vote(Some(10001), false);
+        assert_eq!(votes.chosen(), Some(10001));
+        let mut votes = LayerVotes::default();
+        votes.vote(Some(10001), false);
+        votes.vote(Some(10002), false);
+        assert_eq!(votes.chosen(), None);
+    }
+
+    /// A pack can give only some states of a block an id; the sprite is still the block's.
+    #[test]
+    fn a_named_block_with_no_id_vetoes_a_named_id() {
+        let mut votes = LayerVotes::default();
+        votes.vote(Some(10003), true);
+        votes.vote(None, true);
+        assert_eq!(votes.chosen(), None);
+    }
 }
 
 /// `at_midBlock.w` of each block sprite layer: the light the block drawing it gives (Iris's
