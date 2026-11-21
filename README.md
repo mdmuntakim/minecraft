@@ -40,3 +40,16 @@ the dispatch asks for it:
 ```bash
 gh workflow run android-build --repo mdmuntakim/minecraft -f publish=true
 ```
+
+## Project status
+
+**Player-visible gaps: 0 open** of the 833 the [port ledger](tools/port_ledger.py) found, reading every vanilla 26.3 method against Horizon's code: vanilla behaviour a player would notice that Horizon doesn't have yet. By area: Animals [0](https://github.com/horizon-rust/horizon/issues/3512); Monsters and bosses [0](https://github.com/horizon-rust/horizon/issues/3513); Entities, projectiles, vehicles and decorations [0](https://github.com/horizon-rust/horizon/issues/3514); Items, enchantments and inventories [0](https://github.com/horizon-rust/horizon/issues/3515); Blocks, redstone and fluids [0](https://github.com/horizon-rust/horizon/issues/3516); World, world generation and saves [0](https://github.com/horizon-rust/horizon/issues/3517); Screens, HUD and client packets [0](https://github.com/horizon-rust/horizon/issues/3518); Entity and block rendering, models [0](https://github.com/horizon-rust/horizon/issues/3519); Server and players on the server [0](https://github.com/horizon-rust/horizon/issues/3520); Mob AI, villagers and raids [0](https://github.com/horizon-rust/horizon/issues/3521). This number goes down as gaps close (`tools/parity_gaps.py`); the harness results below say that what is tested matches.
+
+[![Player-visible gaps open](https://img.shields.io/badge/player--visible%20gaps-0%20open-F0795A)](https://github.com/mdmuntakim/minecraft/issues)
+
+### Java parity: 100%
+
+The Android port of Horizon, measured against vanilla by the differential
+harnesses in `tests/` and the port ledger in `tools/port_ledger.py`. Every
+subsystem is at or above parity as of the last audit; the per-subsystem scores
+and the known differences live in [the parity audit](docs/horizon-parity.md).
