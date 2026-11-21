@@ -179,11 +179,12 @@ fn the_official_layout_is_checked_and_resumable() {
     assert!(!root.join("libraries/w").exists());
     assert!(root.join("assets/indexes/9.json").is_file());
     let h1 = sha1_hex(b"object one");
-    assert!(root
-        .join("assets/objects")
-        .join(&h1[..2])
-        .join(&h1)
-        .is_file());
+    assert!(
+        root.join("assets/objects")
+            .join(&h1[..2])
+            .join(&h1)
+            .is_file()
+    );
     let p = *last.lock().unwrap();
     assert_eq!((p.files, p.files_total), (5, 5));
     // Again: everything is there with its hash, so only nothing is fetched.

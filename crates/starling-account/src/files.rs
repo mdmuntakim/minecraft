@@ -7,8 +7,8 @@ use serde_json::Value;
 use sha1::{Digest, Sha1};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::Duration;
 
 /// What `research-lock.json` pins about the game files.
@@ -447,30 +447,32 @@ fn fetch_all(
     let stop = AtomicBool::new(false);
     std::thread::scope(|scope| {
         for _ in 0..4 {
-            scope.spawn(|| loop {
-                if stop.load(Ordering::Relaxed) || cancelled() {
-                    stop.store(true, Ordering::Relaxed);
-                    return;
-                }
-                let Some(item) = queue.lock().unwrap().pop() else {
-                    return;
-                };
-                let name = item
-                    .path
-                    .file_name()
-                    .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
-                let result = if sha1_file(&item.path).as_deref() == Some(item.sha1.as_str()) {
-                    Ok(())
-                } else {
-                    fetch_checked(&item.url, &item.sha1, &name)
-                        .and_then(|data| write_file(&item.path, &data))
-                };
-                match result {
-                    Ok(()) => report(item.size),
-                    Err(e) => {
-                        failed.lock().unwrap().get_or_insert(e);
+            scope.spawn(|| {
+                loop {
+                    if stop.load(Ordering::Relaxed) || cancelled() {
                         stop.store(true, Ordering::Relaxed);
                         return;
+                    }
+                    let Some(item) = queue.lock().unwrap().pop() else {
+                        return;
+                    };
+                    let name = item
+                        .path
+                        .file_name()
+                        .map_or_else(String::new, |n| n.to_string_lossy().into_owned());
+                    let result = if sha1_file(&item.path).as_deref() == Some(item.sha1.as_str()) {
+                        Ok(())
+                    } else {
+                        fetch_checked(&item.url, &item.sha1, &name)
+                            .and_then(|data| write_file(&item.path, &data))
+                    };
+                    match result {
+                        Ok(()) => report(item.size),
+                        Err(e) => {
+                            failed.lock().unwrap().get_or_insert(e);
+                            stop.store(true, Ordering::Relaxed);
+                            return;
+                        }
                     }
                 }
             });
